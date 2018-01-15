@@ -1,9 +1,8 @@
-FROM rust:latest
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
 
-WORKDIR /rusty
+WORKDIR /app
 
-COPY . .
+ADD ./target/x86_64-unknown-linux-musl/release/rusty /app
 
-RUN cargo install
-
-CMD ["rusty"]
+CMD ["/app/rusty"]

@@ -1,3 +1,4 @@
+extern crate openssl_probe;
 extern crate slack;
 use slack::{Event, EventHandler, Message, RtmClient};
 
@@ -51,6 +52,9 @@ fn respond_hi(bot_id: &str, text: &str, channel: &str, cli: &RtmClient) {
 }
 
 fn main() {
+  // https://github.com/emk/rust-musl-builder#making-openssl-work
+  openssl_probe::init_ssl_cert_env_vars();
+
   // get bot token from environment variables
   let env_var = "SLACKBOT_TOKEN";
   let api_key = std::env::vars()
