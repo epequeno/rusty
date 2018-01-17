@@ -56,11 +56,18 @@ fn main() {
   openssl_probe::init_ssl_cert_env_vars();
 
   // get bot token from environment variables
-  let env_var = "SLACKBOT_TOKEN";
-  let api_key = std::env::vars()
-                  .find(|x| x.0 == env_var)
-                  .expect(&format!("No {} env var found!", env_var))
-                  .1;
+  let target_env_var = "SLACKBOT_TOKEN";
+  let mut api_key: String = format!("");
+  for (k, v) in std::env::vars() {
+    if k == target_env_var {
+      api_key = v;
+    }
+  }
+
+  if api_key.is_empty() {
+    println!("no {} environment variable found!\nPlease set this env var and try again.", target_env_var);
+    std::process::exit(1);
+  }
 
   let mut handler = Handler;
   let r = RtmClient::login_and_run(&api_key, &mut handler);
