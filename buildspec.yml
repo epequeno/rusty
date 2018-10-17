@@ -13,7 +13,7 @@ phases:
     commands:
       - echo starting build phase at $(date)
       - git clone https://github.com/epequeno/rusty.git && cd rusty
-      - docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
+      - docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
       - docker build -t rusty .
       - docker tag rusty epequeno/rusty
       - docker push epequeno/rusty
