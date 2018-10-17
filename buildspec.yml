@@ -3,20 +3,14 @@ env:
   parameter-store:
     DOCKER_PASSWORD: "DOCKER_PASSWORD"
 phases:
-  install:
-    commands:
-      - echo starting install phase at $(date)
   pre_build:
     commands:
       - docker login -u epequeno -p $DOCKER_PASSWORD
   build:
     commands:
-      - echo starting build phase at $(date)
       - git clone https://github.com/epequeno/rusty.git && cd rusty
+      - chmod -R ugo+w ./rusty 
       - docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
       - docker build -t rusty .
       - docker tag rusty epequeno/rusty
       - docker push epequeno/rusty
-  post_build:
-    commands:
-      - echo build complete at $(date)
