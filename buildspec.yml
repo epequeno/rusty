@@ -8,7 +8,7 @@ phases:
       - echo starting install phase at $(date)
   pre_build:
     commands:
-      -  docker login –u epequeno –p $DOCKER_PASSWORD
+      - docker login -u epequeno -p $DOCKER_PASSWORD
   build:
     commands:
       - echo starting build phase at $(date)
