@@ -19,4 +19,5 @@ phases:
       - docker push epequeno/rusty
       - echo '[{"name":"rusty","imageUri":"epequeno/rusty:latest"}]' > imagedefinition.json
 artifacts:
-  files: imagedefinition.json
+  files: 
+    - imagedefinition.json
