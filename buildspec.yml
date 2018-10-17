@@ -17,7 +17,8 @@ phases:
   post_build:
     commands:
       - docker push epequeno/rusty
-      - echo '[{"name":"rusty","imageUri":"epequeno/rusty:latest"}]' > imagedefinition.json
+      - mkdir /artifacts && chmod ugo+w /artifacts
+      - echo '[{"name":"rusty","imageUri":"epequeno/rusty:latest"}]' > /artifacts/imagedefinition.json
 artifacts:
   files: 
-    - rusty/imagedefinition.json
+    - /artifacts/imagedefinition.json
