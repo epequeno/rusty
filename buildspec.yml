@@ -14,4 +14,9 @@ phases:
       - docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
       - docker build -t rusty .
       - docker tag rusty epequeno/rusty
+  post_build:
+    commands:
       - docker push epequeno/rusty
+      - echo '[{"name":"rusty","imageUri":"epequeno/rusty:latest"}]' > imagedefinition.json
+artifacts:
+  files: imagedefinition.json
