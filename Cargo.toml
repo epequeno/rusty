@@ -1,8 +1,9 @@
 [package]
 name = "rusty"
 version = "0.1.0"
-authors = ["steven@pequeno.in"]
+authors = ["Steven Pequeno <steven@pequeno.in>"]
 
 [dependencies]
-slack = "0.19.0"
+slack = "0.22"
 openssl-probe = "0.1.2"
+rss = "1"

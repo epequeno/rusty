@@ -10,6 +10,7 @@ docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo bui
 docker build -t ${app_name} .
 
 # push to docker hub
-docker login -u ${docker_username}
+#docker login -u ${docker_username}
+#docker login 
 docker tag ${app_name} ${docker_username}/${app_name}
 docker push ${docker_username}/${app_name}
