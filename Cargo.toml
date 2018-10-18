@@ -6,4 +6,7 @@ authors = ["Steven Pequeno <steven@pequeno.in>"]
 [dependencies]
 slack = "0.22"
 openssl-probe = "0.1.2"
-rss = "1"
+
+[dependencies.rss]
+version = "*"
+features = ["from_url"]

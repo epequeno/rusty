@@ -1,6 +1,10 @@
 extern crate openssl_probe;
 extern crate slack;
+extern crate rss;
+
 use slack::{Event, EventHandler, Message, RtmClient};
+mod reader;
+use reader::read_feed;
 
 struct Handler;
 
@@ -15,13 +19,9 @@ impl EventHandler for Handler {
     };
   }
 
-  fn on_close(&mut self, cli: &RtmClient) {
-    println!("on_close");
-  }
+  fn on_close(&mut self, cli: &RtmClient) {}
 
-  fn on_connect(&mut self, cli: &RtmClient) {
-    println!("on_connect");
-  }
+  fn on_connect(&mut self, cli: &RtmClient) {}
 }
 
 #[allow(unused_variables)]
@@ -57,7 +57,7 @@ fn main() {
 
   // get bot token from environment variables
   let target_env_var = "SLACKBOT_TOKEN";
-  let mut api_key: String = format!("");
+  let mut api_key: String = "".to_string();
   for (k, v) in std::env::vars() {
     if k == target_env_var {
       api_key = v;
