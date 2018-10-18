@@ -10,44 +10,56 @@ struct Handler;
 
 #[allow(unused_variables)]
 impl EventHandler for Handler {
-  fn on_event(&mut self, cli: &RtmClient, event: Event) {
+  fn on_event(&mut self, client: &RtmClient, event: Event) {
     println!("on_event(event: {:?})", event);
 
     match event.clone() {
-      Event::Message(message) => self.handle_message(*message, cli, &event),
+      Event::Message(message) => self.handle_message(*message, client, &event),
       _ => return
     };
   }
 
-  fn on_close(&mut self, cli: &RtmClient) {}
+  fn on_close(&mut self, client: &RtmClient) {}
 
-  fn on_connect(&mut self, cli: &RtmClient) {}
+  fn on_connect(&mut self, client: &RtmClient) {
+    let sender = client.sender().clone();
+    std::thread::spawn(|| {
+      let feed = "https://blog.rust-lang.org/feed.xml";
+      read_feed(feed, sender);
+    });
+
+    let sender = client.sender().clone();
+    std::thread::spawn(|| {
+      let feed = "https://newrustacean.com/feed.xml";
+      read_feed(feed, sender);
+    });    
+  }
 }
 
 #[allow(unused_variables)]
 impl Handler {
-  fn handle_message(&mut self, message: Message, cli: &RtmClient, event: &Event) {
+  fn handle_message(&mut self, message: Message, client: &RtmClient, event: &Event) {
     let message_standard = match message {
       Message::Standard(message_standard) => message_standard,
       _ => return
     };
 
     let channel: String = message_standard.channel.unwrap();
-    let bot_id: &str = cli.start_response().slf.as_ref().unwrap().id.as_ref().unwrap();
+    let bot_id: &str = client.start_response().slf.as_ref().unwrap().id.as_ref().unwrap();
     let text: String = message_standard.text.unwrap();
     if text.contains(bot_id) {
       println!("is a mention");
-      respond_hi(&bot_id, &text, &channel, &cli);
+      respond_hi(&bot_id, &text, &channel, &client);
     }
   }
 }
 
 
-fn respond_hi(bot_id: &str, text: &str, channel: &str, cli: &RtmClient) {
+fn respond_hi(bot_id: &str, text: &str, channel: &str, client: &RtmClient) {
   let pattern = format!("<@{}> hi", bot_id);
 
   if text.contains(&pattern) {
-    let _ = cli.sender().send_message(channel, "Hi there!");
+    let _ = client.sender().send_message(channel, "Hi there!");
   }
 }
 

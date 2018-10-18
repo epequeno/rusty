@@ -2,24 +2,26 @@ extern crate rss;
 use rss::Channel;
 use std::time::Duration;
 use std::thread;
+use slack::Sender;
 
-pub fn read_feed() {
-  let url = "https://blog.rust-lang.org/feed.xml";
-  let mut channel = Channel::from_url(&url).unwrap();  
-  let mut last_known = channel.into_items().pop();
+pub fn read_feed(feed: &str, sender: Sender) {
+  let mut channel = Channel::from_url(feed).unwrap();  
+  let mut last_known = channel.into_items()[0].clone();
   loop {
-    thread::sleep(Duration::from_secs(10));
-    channel = Channel::from_url(&url).unwrap();  
-    let latest = channel.into_items().pop();
+    channel = Channel::from_url(feed).unwrap();  
+    let latest = channel.into_items()[0].clone();
     if latest.clone() != last_known {
-      let desc = latest.clone().unwrap();
+      let title = latest.clone();
+      let title = title.title().unwrap();
+      let desc = latest.clone();
       let desc = desc.description().unwrap();
-      let link = latest.clone().unwrap();
+      let link = latest.clone();
       let link = link.link().unwrap();
-      println!("{} {}",  &desc, &link);
-      last_known = latest.clone();
-    } else {
-      println!("no change");
+      let msg = format!("{} {} {}", title, desc, link);
+      // C8EHWNKHV == #rust
+      let _ = sender.send_message("C8EHWNKHV", &msg);
+      last_known = latest;
     }
+    thread::sleep(Duration::from_secs(3600));
   }
 }
