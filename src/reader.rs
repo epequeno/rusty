@@ -5,16 +5,65 @@ use std::thread;
 use slack::Sender;
 
 pub fn read_feed(feed: &str, sender: Sender) {
-  let mut channel = Channel::from_url(feed).unwrap();  
-  let previous_title = channel.clone().into_items()[0].clone();
-  let mut previous_title = previous_title.title().unwrap().to_string();
+  let channel = match Channel::from_url(feed) {
+    Ok(c) => c,
+    Err(e) => {
+      println!("{}", e);
+      return
+    }
+  };
+
+  let previous_title = match channel.clone().into_items().get(0) {
+    Some(i) => i.clone(),
+    None => {
+      println!("no items found");
+      return
+    }
+  };
+
+  let mut previous_title = match previous_title.title() {
+    Some(t) => t.to_string(),
+    None => {
+      println!("no title found");
+      return
+    }
+  };
+
   loop {
-    channel = Channel::from_url(feed).unwrap();  
-    let latest = channel.into_items()[0].clone();
-    let link = latest.clone();
-    let link = link.link().unwrap();
-    let title = latest.clone();
-    let title = title.title().unwrap().clone();
+    let channel = match Channel::from_url(feed) {
+      Ok(c) => c,
+      Err(e) => {
+        println!("{}", e);
+        return
+      }
+    };  
+    
+    let latest_item = match channel.into_items().get(0) {
+      Some(i) => i.clone(),
+      None => {
+        println!("no items found");
+        return
+      }
+    };
+
+    let link = latest_item.clone();
+    let link = match link.link() {
+      Some(l) => l,
+      None => {
+        println!("no link found");
+        return
+      }
+    };
+
+    let title = latest_item.clone();
+    let title = match title.title() {
+      Some(t) => t.clone(),
+      None => {
+        println!("no title found");
+        return
+      }
+    };
+    
     if title != previous_title {
       // we now have a different title than the last time we ran
       // we'll consider this evidence of an update to the feed.
