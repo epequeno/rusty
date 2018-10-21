@@ -8,7 +8,7 @@ pub fn read_feed(feed: &str, sender: Sender) {
   let channel = match Channel::from_url(feed) {
     Ok(c) => c,
     Err(e) => {
-      println!("{}", e);
+      println!("{}: {}", feed, e);
       return
     }
   };

@@ -22,17 +22,19 @@ impl EventHandler for Handler {
   fn on_close(&mut self, client: &RtmClient) {}
 
   fn on_connect(&mut self, client: &RtmClient) {
-    let sender = client.sender().clone();
-    std::thread::spawn(|| {
-      let feed = "https://blog.rust-lang.org/feed.xml";
-      read_feed(feed, sender);
-    });
+    let feeds = vec![
+      "https://blog.rust-lang.org/feed.xml",
+      "https://newrustacean.com/feed.xml",
+      "https://this-week-in-rust.org/rss.xml",
+      "https://rusty-spike.blubrry.net/feed/podcast/",
+    ];
 
-    let sender = client.sender().clone();
-    std::thread::spawn(|| {
-      let feed = "https://newrustacean.com/feed.xml";
-      read_feed(feed, sender);
-    });    
+    for feed in feeds {
+      let sender = client.sender().clone();
+      std::thread::spawn(move || {
+        read_feed(feed, sender);
+      });
+    }
   }
 }
 
