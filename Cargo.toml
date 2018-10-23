@@ -2,6 +2,12 @@
 name = "rusty"
 version = "0.1.0"
 authors = ["Steven Pequeno <steven@pequeno.in>"]
+description = "a slack bot for sanantoniodevs.slack.com"
+license = "MIT"
+repository = "https://github.com/epequeno/rusty"
+readme = "README.md"
+keywords = ["bot", "slack", "rss"]
+categories = ["web-programming"]
 
 [dependencies]
 slack = "0.22"

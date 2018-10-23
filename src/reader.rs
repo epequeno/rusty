@@ -4,7 +4,7 @@ use std::time::Duration;
 use std::thread;
 use slack::Sender;
 
-pub fn read_feed(feed: &str, sender: Sender) {
+pub fn read_feed(feed: &str, sender: &Sender) {
   let channel = match Channel::from_url(feed) {
     Ok(c) => c,
     Err(e) => {
@@ -57,7 +57,7 @@ pub fn read_feed(feed: &str, sender: Sender) {
 
     let title = latest_item.clone();
     let title = match title.title() {
-      Some(t) => t.clone(),
+      Some(t) => t,
       None => {
         println!("no title found");
         return

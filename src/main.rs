@@ -32,7 +32,7 @@ impl EventHandler for Handler {
     for feed in feeds {
       let sender = client.sender().clone();
       std::thread::spawn(move || {
-        read_feed(feed, sender);
+        read_feed(feed, &sender);
       });
     }
   }
