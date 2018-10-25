@@ -4,10 +4,10 @@ use std::time::Duration;
 use std::thread;
 use slack::Sender;
 
-pub fn read_feed(feed: &str, sender: &Sender) {
+pub fn read_feed(feed: String, sender: Sender) {
   println!("start reading {}", feed);
-  
-  let channel = match Channel::from_url(feed) {
+
+  let channel = match Channel::from_url(&feed) {
     Ok(c) => c,
     Err(e) => {
       println!("{}: {}", feed, e);
@@ -36,14 +36,14 @@ pub fn read_feed(feed: &str, sender: &Sender) {
 
   loop {
     println!("reading {}", feed);
-    let channel = match Channel::from_url(feed) {
+    let channel = match Channel::from_url(&feed) {
       Ok(c) => c,
       Err(e) => {
         println!("{}", e);
         return
       }
-    };  
-    
+    };
+
     let latest_item = match channel.into_items().get(0) {
       Some(i) => i.clone(),
       None => {
@@ -69,7 +69,7 @@ pub fn read_feed(feed: &str, sender: &Sender) {
         return
       }
     };
-    
+
     println!("latest: {}", latest_title);
     println!("previous: {}", previous_title);
     if latest_title != previous_title {
