@@ -21,3 +21,4 @@ script:
   - docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
   - docker build -t rusty .
   - docker tag rusty epequeno/rusty
+  - docker push epequeno/rusty
