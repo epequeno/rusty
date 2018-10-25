@@ -5,6 +5,8 @@ use std::thread;
 use slack::Sender;
 
 pub fn read_feed(feed: &str, sender: &Sender) {
+  println!("start reading {}", feed);
+  
   let channel = match Channel::from_url(feed) {
     Ok(c) => c,
     Err(e) => {
@@ -29,7 +31,11 @@ pub fn read_feed(feed: &str, sender: &Sender) {
     }
   };
 
+  // really this is the starting title but we'll use the name later
+  println!("starting title: {}", previous_title);
+
   loop {
+    println!("reading {}", feed);
     let channel = match Channel::from_url(feed) {
       Ok(c) => c,
       Err(e) => {
@@ -55,8 +61,8 @@ pub fn read_feed(feed: &str, sender: &Sender) {
       }
     };
 
-    let title = latest_item.clone();
-    let title = match title.title() {
+    let latest_title = latest_item.clone();
+    let latest_title = match latest_title.title() {
       Some(t) => t,
       None => {
         println!("no title found");
@@ -64,14 +70,17 @@ pub fn read_feed(feed: &str, sender: &Sender) {
       }
     };
     
-    if title != previous_title {
+    println!("latest: {}", latest_title);
+    println!("previous: {}", previous_title);
+    if latest_title != previous_title {
       // we now have a different title than the last time we ran
       // we'll consider this evidence of an update to the feed.
       // C8EHWNKHV == #rust
-      let msg = format!("<{}|{}>", link, title);
-      let _ = sender.send_message("C8EHWNKHV", &msg);
-      previous_title = title.to_string();
+      let msg = format!("<{}|{}>", link, latest_title);
+      let _ = sender.send_message("D8S4B7Q8H", &msg);
+      previous_title = latest_title.to_string();
     }
+    println!("sleeping: {}", feed);
     thread::sleep(Duration::from_secs(300));
   }
 }
