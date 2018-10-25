@@ -1,0 +1,22 @@
+language: rust
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+
+services:
+  - docker
+
+before_install:
+  - docker login -u epequeno -p $DOCKER_PASSWORD
+
+script:
+  - docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
+  - docker build -t rusty .
+  - docker tag rusty epequeno/rusty
