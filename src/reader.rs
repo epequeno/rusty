@@ -77,7 +77,7 @@ pub fn read_feed(feed: &str, sender: &Sender) {
       // we'll consider this evidence of an update to the feed.
       // C8EHWNKHV == #rust
       let msg = format!("<{}|{}>", link, latest_title);
-      let _ = sender.send_message("D8S4B7Q8H", &msg);
+      let _ = sender.send_message("CD31RPEFR", &msg);
       previous_title = latest_title.to_string();
     }
     println!("sleeping: {}", feed);
