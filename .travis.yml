@@ -22,3 +22,5 @@ script:
   - docker build -t rusty .
   - docker tag rusty epequeno/rusty
   - docker push epequeno/rusty
+  - cargo login $CRATESIO_API_KEY
+  - cargo publish
