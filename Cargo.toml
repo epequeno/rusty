@@ -14,5 +14,5 @@ slack = "0.22"
 openssl-probe = "0.1.2"
 
 [dependencies.rss]
-version = "*"
+version = "1"
 features = ["from_url"]
