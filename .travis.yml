@@ -22,7 +22,7 @@ jobs:
         - docker build -t rusty .
         - docker tag rusty epequeno/rusty
     - stage: deploy
-      if: $TRAVIS_RUST_VERSION = stable
+      if: "$TRAVIS_RUST_VERSION = stable"
       script:
         - docker login -u epequeno -p $DOCKER_PASSWORD
         - docker push epequeno/rusty
