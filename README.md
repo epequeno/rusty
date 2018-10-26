@@ -1,3 +1,5 @@
+![rusty](https://i.imgur.com/4Sl46Gpl.jpg)
+
 [![Build Status](https://travis-ci.com/epequeno/rusty.svg?branch=master)](https://travis-ci.com/epequeno/rusty)
 
 A slackbot for sanantoniodevs.slack.com written in rust.
