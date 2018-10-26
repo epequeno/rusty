@@ -1,5 +1,5 @@
 language: rust
-
+cache: cargo
 rust:
   - stable
   - beta
@@ -12,6 +12,11 @@ matrix:
 
 services:
   - docker
+
+stages:
+  - build
+  - name: deploy
+    if: $TRAVIS_RUST_VERSION = stable
 
 jobs:
   include:
@@ -28,7 +33,3 @@ jobs:
         - sudo chmod -R ugo+w $(pwd)/target
         - cargo publish --token $CRATESIO_API_KEY        
 
-stages:
-  - build
-  - name: deploy
-    if: $TRAVIS_RUST_VERSION = stable
