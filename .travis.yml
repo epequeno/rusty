@@ -15,6 +15,7 @@ services:
 
 before_install:
   - docker login -u epequeno -p $DOCKER_PASSWORD
+  - cargo login $CRATESIO_API_KEY
 
 script:
   - chmod ugo+w $(pwd)
@@ -22,5 +23,4 @@ script:
   - docker build -t rusty .
   - docker tag rusty epequeno/rusty
   - docker push epequeno/rusty
-  - cargo login $CRATESIO_API_KEY
   - cargo publish
