@@ -23,4 +23,5 @@ script:
   - docker build -t rusty .
   - docker tag rusty epequeno/rusty
   - docker push epequeno/rusty
+  - chmod -R ugo+w $(pwd)/target
   - cargo publish
