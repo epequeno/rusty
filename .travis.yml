@@ -15,8 +15,6 @@ services:
 
 jobs:
   include:
-    - stage: test
-      script: ./ci/test.sh
     - stage: build
       script: ./ci/build.sh
     - stage: deploy
