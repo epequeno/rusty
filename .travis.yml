@@ -19,10 +19,6 @@ jobs:
       script: ./ci/build.sh
     - stage: deploy
       script: ./ci/deploy.sh
-
-deploy:
-  skip_cleanup: true
-  provider: script
-  on:
-    branch: master
-    rust: stable
+      on:
+        branch: master
+        rust: stable
