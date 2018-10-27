@@ -23,6 +23,7 @@ script:
   - docker tag rusty epequeno/rusty
 
 deploy:
+  skip_cleanup: true
   provider: script
   script:
     - sudo chmod -R ugo+w $(pwd)/target
