@@ -23,17 +23,23 @@ impl EventHandler for Handler {
 
   fn on_connect(&mut self, client: &RtmClient) {
     let feeds = [
-      "https://blog.rust-lang.org/feed.xml",
-      "https://newrustacean.com/feed.xml",
-      "https://this-week-in-rust.org/rss.xml",
-      "https://rusty-spike.blubrry.net/feed/podcast/",
+      ("C8EHWNKHV", "https://blog.japaric.io/index.xml"),
+      ("C8EHWNKHV", "https://blog.rust-lang.org/feed.xml"),
+      ("C8EHWNKHV", "https://rusty-spike.blubrry.net/feed/podcast/"),
+      ("C8EHWNKHV", "https://newrustacean.com/feed.xml"),
+      ("C8EHWNKHV", "https://this-week-in-rust.org/rss.xml"),
+      ("C8EHWNKHV", "https://rusty-spike.blubrry.net/feed/podcast/"),
+      ("CA6MUA4LU", "https://aws.amazon.com/new/feed/"),
+      ("C6DTBQK4P", "http://feeds.feedburner.com/PythonInsider"),
+      ("C91DM9Y6S", "https://kubernetes.io/feed.xml"),
     ];
 
-    for feed in feeds.iter() {
+    for (channel, feed) in feeds.iter() {
       let sender = client.sender().clone();
       let f = feed.to_string();
+      let c = channel.to_string();
       std::thread::spawn(move || {
-        read_feed(f, sender);
+        read_feed(c, f, sender);
       });
     }
   }

@@ -4,7 +4,7 @@ use std::time::Duration;
 use std::thread;
 use slack::Sender;
 
-pub fn read_feed(feed: String, sender: Sender) {
+pub fn read_feed(chan: String, feed: String, sender: Sender) {
   println!("start reading {}", feed);
 
   let channel = match Channel::from_url(&feed) {
@@ -76,7 +76,7 @@ pub fn read_feed(feed: String, sender: Sender) {
       // we now have a different title than the last time we ran
       // we'll consider this evidence of an update to the feed.
       // C8EHWNKHV == #rust
-      let msg = format!("<{}|{}>", link, latest_title);
+      let msg = format!("<{}|{}> send to: {}", link, latest_title, chan);
       let _ = sender.send_message("CD31RPEFR", &msg);
       previous_title = latest_title.to_string();
     }
