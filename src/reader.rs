@@ -82,15 +82,14 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
         for item in new_items {
             let latest_title = item.title().unwrap();
             let link = item.link().unwrap();
-            let msg = format!("<{}|{}> send to: {}", link, latest_title, slack_channel);
-            debug!("sending {}", msg);
+            let msg = format!("<{}|{}>", link, latest_title);
+            debug!("sending channel {}: {}", slack_channel, msg);
+
             // live
-            // let _ = sender.send_message(&slack_channel, &msg);
+            let _ = sender.send_message(&slack_channel, &msg);
 
             // battlebots
-            let _ = sender.send_message("CD31RPEFR", &msg);
-
-            // println!("{}", &msg);
+            // let _ = sender.send_message("CD31RPEFR", &msg);
         }
 
         thread::sleep(sleep_duration);

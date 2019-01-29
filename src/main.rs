@@ -28,10 +28,10 @@ impl EventHandler for Handler {
             ("C8EHWNKHV", "https://rusty-spike.blubrry.net/feed/podcast/"),
             ("CA6MUA4LU", "https://aws.amazon.com/new/feed/"),
             ("C91DM9Y6S", "https://kubernetes.io/feed.xml"),
-            (
-                "C91DM9Y6S",
-                "http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60",
-            ),
+            // (
+            //     "C91DM9Y6S",
+            //     "http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60",
+            // ),
         ];
 
         let atom_feeds = [
