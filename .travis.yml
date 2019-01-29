@@ -1,4 +1,11 @@
 language: rust
+before_script:
+  - cargo install --force cargo-audit
+  - cargo install --force --git https://github.com/kbknapp/cargo-outdated
+script:
+  - cargo clippy
+  - cargo audit
+  - cargo outdated
 cache: cargo
 rust:
   - stable
