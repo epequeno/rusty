@@ -4,4 +4,4 @@ docker build -t rusty .
 docker tag rusty epequeno/rusty
 sudo chmod -R ugo+w $(pwd)/target
 docker push epequeno/rusty
-cargo publish --token $CRATESIO_API_KEY
+#cargo publish --token $CRATESIO_API_KEY
