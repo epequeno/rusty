@@ -1,4 +1,5 @@
 //! rss reader
+//! useful for debug: http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60
 use crate::SlackChannel;
 use linked_hash_set::LinkedHashSet;
 use log::{debug, error};
@@ -21,7 +22,7 @@ impl Feed {
         Feed {
             url,
             previous_titles,
-            slack_channel: SlackChannel::None,
+            slack_channel: SlackChannel::BattleBots,
         }
     }
 
@@ -52,6 +53,13 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
 
     // initial run
     let slack_channel = feed.slack_channel.clone();
+    let chan = match slack_channel {
+        SlackChannel::Aws => "CA6MUA4LU",
+        SlackChannel::Rust => "C8EHWNKHV",
+        SlackChannel::Kubernetes => "C91DM9Y6S",
+        SlackChannel::Python => "C6DTBQK4P",
+        SlackChannel::BattleBots => "CD31RPEFR",
+    };
     let items = feed.read();
     debug!("got {} items from {}", items.len(), feed.url);
     for title in feed.get_titles(items) {
@@ -70,6 +78,7 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
         let items = feed.read();
         debug!("got {} items from {}", items.len(), feed.url);
 
+        // find any new, unseen items
         let mut new_items: Vec<Item> = Vec::new();
         for item in items {
             let title = item.title().unwrap();
@@ -80,28 +89,13 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
             }
         }
 
+        // send new items
         for item in new_items {
             let latest_title = item.title().unwrap();
             let link = item.link().unwrap();
             let msg = format!("<{}|{}>", link, latest_title);
-            debug!("sending channel {}: {}", slack_channel, msg);
-
-            let chan = match slack_channel {
-                SlackChannel::Aws => "CA6MUA4LU",
-                SlackChannel::Rust => "C8EHWNKHV",
-                SlackChannel::Kubernetes => "C91DM9Y6S",
-                SlackChannel::None => "None",
-            };
-
-            if chan == "None" {
-                continue;
-            }
-
-            // live
+            debug!("sending channel {}: {}", chan, msg);
             let _ = sender.send_message(&chan, &msg);
-
-            // battlebots
-            // let _ = sender.send_message("CD31RPEFR", &msg);
         }
 
         thread::sleep(sleep_duration);

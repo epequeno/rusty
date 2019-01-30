@@ -3,7 +3,6 @@ mod reader;
 use env_logger;
 use log::info;
 use reader::{read_feed, Feed};
-use std::fmt;
 
 struct Handler;
 
@@ -12,13 +11,8 @@ pub enum SlackChannel {
     Aws,
     Rust,
     Kubernetes,
-    None,
-}
-
-impl fmt::Display for SlackChannel {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
-    }
+    Python,
+    BattleBots,
 }
 
 #[allow(unused_variables)]
@@ -47,22 +41,17 @@ impl EventHandler for Handler {
             ),
             (SlackChannel::Aws, "https://aws.amazon.com/new/feed/"),
             (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
-            // (
-            //     "C91DM9Y6S",
-            //     "http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60",
-            // ),
         ];
 
+        // TODO: build atom reader
+        // github.com/rust-syndication/atom maybe?
         let atom_feeds = [
-            ("C8EHWNKHV", "https://blog.rust-lang.org/feed.xml"),
-            ("C6DTBQK4P", "http://feeds.feedburner.com/PythonInsider"),
+            (SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml"),
+            (
+                SlackChannel::Python,
+                "http://feeds.feedburner.com/PythonInsider",
+            ),
         ];
-
-        // let feeds = [("CA6MUA4LU", "https://blog.japaric.io/index.xml")];
-        // let feeds = [(
-        //     "CA6MUA4LU",
-        //     "http://lorem-rss.herokuapp.com/feed?unit=minute",
-        // )];
 
         for (channel, url) in rss_feeds.iter() {
             let sender = client.sender().clone();
