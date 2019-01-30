@@ -25,6 +25,6 @@ jobs:
   include:
     - stage: build
       script: ./ci/build.sh
-#     - stage: deploy
-#       script: ./ci/deploy.sh
-#       if: (branch = master)
+    - stage: deploy
+      script: ./ci/deploy.sh
+      if: (branch = master)
