@@ -8,6 +8,14 @@ use slack::Sender;
 use std::thread;
 use std::time::Duration;
 
+fn get_titles(items: Vec<Item>) -> Vec<String> {
+    let mut titles: Vec<String> = Vec::new();
+    for item in items {
+        titles.push(item.title().unwrap().to_string());
+    }
+    titles
+}
+
 #[derive(Clone)]
 pub struct Feed {
     pub url: String,
@@ -37,14 +45,6 @@ impl Feed {
             }
         }
     }
-
-    pub fn get_titles(&mut self, items: Vec<Item>) -> Vec<String> {
-        let mut titles: Vec<String> = Vec::new();
-        for item in items {
-            titles.push(item.title().unwrap().to_string());
-        }
-        titles
-    }
 }
 
 pub fn read_feed(mut feed: Feed, sender: Sender) {
@@ -62,7 +62,7 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
     };
     let items = feed.read();
     debug!("got {} items from {}", items.len(), feed.url);
-    for title in feed.get_titles(items) {
+    for title in get_titles(items) {
         feed.previous_titles.insert(title);
     }
     thread::sleep(sleep_duration);
