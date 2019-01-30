@@ -20,14 +20,24 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
+        let rust_channel = String::from("C8EHWNKHV");
+        let aws_channel = String::from("CA6MUA4LU");
+        let k8s_channel = String::from("C91DM9Y6S");
         let rss_feeds = [
-            ("C8EHWNKHV", "https://blog.japaric.io/index.xml"),
-            ("C8EHWNKHV", "https://newrustacean.com/feed.xml"),
-            ("C8EHWNKHV", "https://os.phil-opp.com/rss.xml"),
-            ("C8EHWNKHV", "https://this-week-in-rust.org/rss.xml"),
-            ("C8EHWNKHV", "https://rusty-spike.blubrry.net/feed/podcast/"),
-            ("CA6MUA4LU", "https://aws.amazon.com/new/feed/"),
-            ("C91DM9Y6S", "https://kubernetes.io/feed.xml"),
+            (rust_channel.clone(), "https://blog.japaric.io/index.xml"),
+            (rust_channel.clone(), "https://newrustacean.com/feed.xml"),
+            (rust_channel.clone(), "https://nercury.github.io/feed.xml"),
+            (rust_channel.clone(), "https://os.phil-opp.com/rss.xml"),
+            (
+                rust_channel.clone(),
+                "https://this-week-in-rust.org/rss.xml",
+            ),
+            (
+                rust_channel.clone(),
+                "https://rusty-spike.blubrry.net/feed/podcast/",
+            ),
+            (aws_channel.clone(), "https://aws.amazon.com/new/feed/"),
+            (k8s_channel.clone(), "https://kubernetes.io/feed.xml"),
             // (
             //     "C91DM9Y6S",
             //     "http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60",
