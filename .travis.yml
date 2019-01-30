@@ -1,4 +1,12 @@
 language: rust
+before_script:
+  - rustup component add clippy
+  - cargo install --force cargo-audit
+  - cargo install --force --git https://github.com/kbknapp/cargo-outdated
+script:
+  - cargo clippy
+  - cargo audit
+  - cargo outdated
 cache: cargo
 rust:
   - stable
@@ -19,6 +27,4 @@ jobs:
       script: ./ci/build.sh
     - stage: deploy
       script: ./ci/deploy.sh
-      on:
-        branch: master
-        rust: stable
+      if: (branch = master)

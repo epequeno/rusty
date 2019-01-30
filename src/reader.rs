@@ -1,86 +1,103 @@
-extern crate rss;
-use rss::Channel;
-use std::time::Duration;
-use std::thread;
+//! rss reader
+//! useful for debug: http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60
+use crate::SlackChannel;
+use linked_hash_set::LinkedHashSet;
+use log::{debug, error};
+use rss::{Channel, Item};
 use slack::Sender;
+use std::thread;
+use std::time::Duration;
 
-pub fn read_feed(chan: String, feed: String, sender: Sender) {
-  println!("start reading {}", feed);
-
-  let channel = match Channel::from_url(&feed) {
-    Ok(c) => c,
-    Err(e) => {
-      println!("{}: {}", feed, e);
-      return
+fn get_titles(items: Vec<Item>) -> Vec<String> {
+    let mut titles: Vec<String> = Vec::new();
+    for item in items {
+        titles.push(item.title().unwrap().to_string());
     }
-  };
+    titles
+}
 
-  let previous_title = match channel.clone().into_items().get(0) {
-    Some(i) => i.clone(),
-    None => {
-      println!("no items found");
-      return
+#[derive(Clone)]
+pub struct Feed {
+    pub url: String,
+    pub previous_titles: LinkedHashSet<String>,
+    pub slack_channel: SlackChannel,
+}
+
+impl Feed {
+    pub fn new(url: String) -> Feed {
+        debug!("creating new Feed with: {}", &url);
+        let previous_titles: LinkedHashSet<String> = LinkedHashSet::new();
+        Feed {
+            url,
+            previous_titles,
+            slack_channel: SlackChannel::BattleBots,
+        }
     }
-  };
 
-  let mut previous_title = match previous_title.title() {
-    Some(t) => t.to_string(),
-    None => {
-      println!("no title found");
-      return
+    pub fn read(&self) -> Vec<Item> {
+        debug!("reading feed: {}", self.url);
+        let channel = Channel::from_url(&self.url);
+        match channel {
+            Ok(chan) => chan.into_items(),
+            Err(e) => {
+                error!("error with: {}: {}", self.url, e);
+                Vec::new()
+            }
+        }
     }
-  };
+}
 
-  // really this is the starting title but we'll use the name later
-  println!("starting title: {}", previous_title);
+pub fn read_feed(mut feed: Feed, sender: Sender) {
+    let sleep_duration = Duration::from_secs(300);
+    let titles_to_retain = 200;
 
-  loop {
-    println!("reading {}", feed);
-    let channel = match Channel::from_url(&feed) {
-      Ok(c) => c,
-      Err(e) => {
-        println!("{}", e);
-        return
-      }
+    // initial run
+    let slack_channel = feed.slack_channel.clone();
+    let chan = match slack_channel {
+        SlackChannel::Aws => "CA6MUA4LU",
+        SlackChannel::Rust => "C8EHWNKHV",
+        SlackChannel::Kubernetes => "C91DM9Y6S",
+        SlackChannel::Python => "C6DTBQK4P",
+        SlackChannel::BattleBots => "CD31RPEFR",
     };
-
-    let latest_item = match channel.into_items().get(0) {
-      Some(i) => i.clone(),
-      None => {
-        println!("no items found");
-        return
-      }
-    };
-
-    let link = latest_item.clone();
-    let link = match link.link() {
-      Some(l) => l,
-      None => {
-        println!("no link found");
-        return
-      }
-    };
-
-    let latest_title = latest_item.clone();
-    let latest_title = match latest_title.title() {
-      Some(t) => t,
-      None => {
-        println!("no title found");
-        return
-      }
-    };
-
-    println!("latest: {}", latest_title);
-    println!("previous: {}", previous_title);
-    if latest_title != previous_title {
-      // we now have a different title than the last time we ran
-      // we'll consider this evidence of an update to the feed.
-      // C8EHWNKHV == #rust
-      let msg = format!("<{}|{}> send to: {}", link, latest_title, chan);
-      let _ = sender.send_message("CD31RPEFR", &msg);
-      previous_title = latest_title.to_string();
+    let items = feed.read();
+    debug!("got {} items from {}", items.len(), feed.url);
+    for title in get_titles(items) {
+        feed.previous_titles.insert(title);
     }
-    println!("sleeping: {}", feed);
-    thread::sleep(Duration::from_secs(300));
-  }
+    thread::sleep(sleep_duration);
+
+    // main reader loop
+    loop {
+        // keep previously seen titles to a reasonable size
+        while feed.previous_titles.len() > titles_to_retain {
+            let popped = feed.previous_titles.pop_front().unwrap();
+            debug!("popping previous title: {}", popped);
+        }
+
+        let items = feed.read();
+        debug!("got {} items from {}", items.len(), feed.url);
+
+        // find any new, unseen items
+        let mut new_items: Vec<Item> = Vec::new();
+        for item in items {
+            let title = item.title().unwrap();
+            if !feed.previous_titles.contains(title) {
+                debug!("found new title: {}", title);
+                new_items.push(item.clone());
+                feed.previous_titles.insert(title.to_string());
+            }
+        }
+
+        // send new items
+        for item in new_items {
+            let latest_title = item.title().unwrap();
+            let link = item.link().unwrap();
+            let msg = format!("<{}|{}>", link, latest_title);
+            debug!("sending channel {}: {}", chan, msg);
+            let _ = sender.send_message(&chan, &msg);
+        }
+
+        thread::sleep(sleep_duration);
+    }
 }
