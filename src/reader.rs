@@ -1,4 +1,5 @@
 //! rss reader
+use crate::SlackChannel;
 use linked_hash_set::LinkedHashSet;
 use log::{debug, error};
 use rss::{Channel, Item};
@@ -10,7 +11,7 @@ use std::time::Duration;
 pub struct Feed {
     pub url: String,
     pub previous_titles: LinkedHashSet<String>,
-    pub slack_channel: String,
+    pub slack_channel: SlackChannel,
 }
 
 impl Feed {
@@ -20,7 +21,7 @@ impl Feed {
         Feed {
             url,
             previous_titles,
-            slack_channel: String::from("None"),
+            slack_channel: SlackChannel::None,
         }
     }
 
@@ -85,8 +86,19 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
             let msg = format!("<{}|{}>", link, latest_title);
             debug!("sending channel {}: {}", slack_channel, msg);
 
+            let chan = match slack_channel {
+                SlackChannel::Aws => "CA6MUA4LU",
+                SlackChannel::Rust => "C8EHWNKHV",
+                SlackChannel::Kubernetes => "C91DM9Y6S",
+                SlackChannel::None => "None",
+            };
+
+            if chan == "None" {
+                continue;
+            }
+
             // live
-            let _ = sender.send_message(&slack_channel, &msg);
+            let _ = sender.send_message(&chan, &msg);
 
             // battlebots
             // let _ = sender.send_message("CD31RPEFR", &msg);

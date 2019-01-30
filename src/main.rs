@@ -3,8 +3,23 @@ mod reader;
 use env_logger;
 use log::info;
 use reader::{read_feed, Feed};
+use std::fmt;
 
 struct Handler;
+
+#[derive(Clone)]
+pub enum SlackChannel {
+    Aws,
+    Rust,
+    Kubernetes,
+    None,
+}
+
+impl fmt::Display for SlackChannel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 
 #[allow(unused_variables)]
 impl EventHandler for Handler {
@@ -20,24 +35,18 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        let rust_channel = String::from("C8EHWNKHV");
-        let aws_channel = String::from("CA6MUA4LU");
-        let k8s_channel = String::from("C91DM9Y6S");
         let rss_feeds = [
-            (rust_channel.clone(), "https://blog.japaric.io/index.xml"),
-            (rust_channel.clone(), "https://newrustacean.com/feed.xml"),
-            (rust_channel.clone(), "https://nercury.github.io/feed.xml"),
-            (rust_channel.clone(), "https://os.phil-opp.com/rss.xml"),
+            (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
+            (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
+            (SlackChannel::Rust, "https://nercury.github.io/feed.xml"),
+            (SlackChannel::Rust, "https://os.phil-opp.com/rss.xml"),
+            (SlackChannel::Rust, "https://this-week-in-rust.org/rss.xml"),
             (
-                rust_channel.clone(),
-                "https://this-week-in-rust.org/rss.xml",
-            ),
-            (
-                rust_channel.clone(),
+                SlackChannel::Rust,
                 "https://rusty-spike.blubrry.net/feed/podcast/",
             ),
-            (aws_channel.clone(), "https://aws.amazon.com/new/feed/"),
-            (k8s_channel.clone(), "https://kubernetes.io/feed.xml"),
+            (SlackChannel::Aws, "https://aws.amazon.com/new/feed/"),
+            (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
             // (
             //     "C91DM9Y6S",
             //     "http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60",
@@ -58,7 +67,7 @@ impl EventHandler for Handler {
         for (channel, url) in rss_feeds.iter() {
             let sender = client.sender().clone();
             let mut feed = Feed::new(url.to_string());
-            feed.slack_channel = channel.to_string();
+            feed.slack_channel = channel.clone();
             std::thread::spawn(move || {
                 read_feed(feed, sender);
             });
