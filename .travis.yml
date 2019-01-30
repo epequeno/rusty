@@ -21,10 +21,10 @@ matrix:
 services:
   - docker
 
-# jobs:
-#   include:
-#     - stage: build
-#       script: ./ci/build.sh
+jobs:
+  include:
+    - stage: build
+      script: ./ci/build.sh
 #     - stage: deploy
 #       script: ./ci/deploy.sh
 #       if: (branch = master)
