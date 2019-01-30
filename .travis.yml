@@ -27,6 +27,4 @@ jobs:
       script: ./ci/build.sh
     - stage: deploy
       script: ./ci/deploy.sh
-      on:
-        branch: master
-        rust: stable
+      if: (branch = master)
