@@ -1,4 +1,5 @@
 language: rust
+dist: trusty
 before_script:
   - rustup component add clippy
   - cargo install --force cargo-audit
@@ -23,8 +24,6 @@ services:
 
 jobs:
   include:
-    - stage: build
-      script: ./ci/build.sh
     - stage: deploy
       script: ./ci/deploy.sh
-      if: (branch = master)
+      if: branch = master
