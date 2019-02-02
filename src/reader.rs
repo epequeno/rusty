@@ -52,14 +52,7 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
     let titles_to_retain = 200;
 
     // initial run
-    let slack_channel = feed.slack_channel.clone();
-    let chan = match slack_channel {
-        SlackChannel::Aws => "CA6MUA4LU",
-        SlackChannel::Rust => "C8EHWNKHV",
-        SlackChannel::Kubernetes => "C91DM9Y6S",
-        SlackChannel::Python => "C6DTBQK4P",
-        SlackChannel::BattleBots => "CD31RPEFR",
-    };
+    let chan_id = feed.slack_channel.get_channel_id();
     let items = feed.read();
     debug!("got {} items from {}", items.len(), feed.url);
     for title in get_titles(items) {
@@ -94,8 +87,8 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
             let latest_title = item.title().unwrap();
             let link = item.link().unwrap();
             let msg = format!("<{}|{}>", link, latest_title);
-            debug!("sending channel {}: {}", chan, msg);
-            let _ = sender.send_message(&chan, &msg);
+            debug!("sending channel {}: {}", chan_id, msg);
+            let _ = sender.send_message(&chan_id, &msg);
         }
 
         thread::sleep(sleep_duration);
