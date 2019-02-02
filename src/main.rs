@@ -1,8 +1,9 @@
+#![allow(dead_code)]
 use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
 use log::info;
-use reader::{read_feed, Feed};
+use reader::{read_atom_feed, read_rss_feed, AtomFeed, RssFeed};
 
 struct Handler;
 
@@ -43,8 +44,17 @@ fn start_feed_readers(client: &RtmClient) {
         (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
     ];
 
-    // TODO: build atom reader
-    // github.com/rust-syndication/atom maybe?
+    for (channel, url) in rss_feeds.iter() {
+        let sender = client.sender().clone();
+        let mut feed = RssFeed::new(url.to_string());
+        feed.slack_channel = channel.clone();
+        std::thread::spawn(move || {
+            read_rss_feed(feed, sender);
+        });
+    }
+}
+
+fn start_atom_readers(client: &RtmClient) {
     let atom_feeds = [
         (SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml"),
         (
@@ -53,12 +63,12 @@ fn start_feed_readers(client: &RtmClient) {
         ),
     ];
 
-    for (channel, url) in rss_feeds.iter() {
+    for (channel, url) in atom_feeds.iter() {
         let sender = client.sender().clone();
-        let mut feed = Feed::new(url.to_string());
+        let mut feed = AtomFeed::new(url.to_string());
         feed.slack_channel = channel.clone();
         std::thread::spawn(move || {
-            read_feed(feed, sender);
+            read_atom_feed(feed, sender);
         });
     }
 }
@@ -77,7 +87,8 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        start_feed_readers(client);
+        // start_feed_readers(client);
+        start_atom_readers(client);
     }
 }
 
