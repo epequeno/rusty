@@ -1,8 +1,9 @@
+#![allow(dead_code)]
 use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
 use log::info;
-use reader::{read_feed, Feed};
+use reader::{read_atom_feed, read_rss_feed, AtomFeed, RssFeed};
 
 struct Handler;
 
@@ -13,6 +14,63 @@ pub enum SlackChannel {
     Kubernetes,
     Python,
     BattleBots,
+}
+
+impl SlackChannel {
+    pub fn get_channel_id(&self) -> String {
+        match self {
+            SlackChannel::Aws => "CA6MUA4LU",
+            SlackChannel::Rust => "C8EHWNKHV",
+            SlackChannel::Kubernetes => "C91DM9Y6S",
+            SlackChannel::Python => "C6DTBQK4P",
+            SlackChannel::BattleBots => "CD31RPEFR",
+        }
+        .into()
+    }
+}
+
+fn start_feed_readers(client: &RtmClient) {
+    let rss_feeds = [
+        (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
+        (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
+        (SlackChannel::Rust, "https://nercury.github.io/feed.xml"),
+        (SlackChannel::Rust, "https://os.phil-opp.com/rss.xml"),
+        (SlackChannel::Rust, "https://this-week-in-rust.org/rss.xml"),
+        (
+            SlackChannel::Rust,
+            "https://rusty-spike.blubrry.net/feed/podcast/",
+        ),
+        (SlackChannel::Aws, "https://aws.amazon.com/new/feed/"),
+        (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
+    ];
+
+    for (channel, url) in rss_feeds.iter() {
+        let sender = client.sender().clone();
+        let mut feed = RssFeed::new(url.to_string());
+        feed.slack_channel = channel.clone();
+        std::thread::spawn(move || {
+            read_rss_feed(feed, sender);
+        });
+    }
+}
+
+fn start_atom_readers(client: &RtmClient) {
+    let atom_feeds = [
+        (SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml"),
+        (
+            SlackChannel::Python,
+            "http://feeds.feedburner.com/PythonInsider",
+        ),
+    ];
+
+    for (channel, url) in atom_feeds.iter() {
+        let sender = client.sender().clone();
+        let mut feed = AtomFeed::new(url.to_string());
+        feed.slack_channel = channel.clone();
+        std::thread::spawn(move || {
+            read_atom_feed(feed, sender);
+        });
+    }
 }
 
 #[allow(unused_variables)]
@@ -29,38 +87,8 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        let rss_feeds = [
-            (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
-            (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
-            (SlackChannel::Rust, "https://nercury.github.io/feed.xml"),
-            (SlackChannel::Rust, "https://os.phil-opp.com/rss.xml"),
-            (SlackChannel::Rust, "https://this-week-in-rust.org/rss.xml"),
-            (
-                SlackChannel::Rust,
-                "https://rusty-spike.blubrry.net/feed/podcast/",
-            ),
-            (SlackChannel::Aws, "https://aws.amazon.com/new/feed/"),
-            (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
-        ];
-
-        // TODO: build atom reader
-        // github.com/rust-syndication/atom maybe?
-        let atom_feeds = [
-            (SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml"),
-            (
-                SlackChannel::Python,
-                "http://feeds.feedburner.com/PythonInsider",
-            ),
-        ];
-
-        for (channel, url) in rss_feeds.iter() {
-            let sender = client.sender().clone();
-            let mut feed = Feed::new(url.to_string());
-            feed.slack_channel = channel.clone();
-            std::thread::spawn(move || {
-                read_feed(feed, sender);
-            });
-        }
+        // start_feed_readers(client);
+        start_atom_readers(client);
     }
 }
 
