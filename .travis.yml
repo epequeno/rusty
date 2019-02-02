@@ -25,5 +25,8 @@ services:
 jobs:
   include:
     - stage: deploy
+      before_install:
+      - pip install --user awscli
+      - export PATH=$PATH:$HOME/.local/bin
       script: ./ci/deploy.sh
       if: branch = master
