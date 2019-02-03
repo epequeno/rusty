@@ -28,7 +28,7 @@ impl SlackChannel {
     }
 }
 
-fn start_feed_readers(client: &RtmClient) {
+fn start_rss_readers(client: &RtmClient) {
     let rss_feeds = [
         (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
         (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
@@ -86,7 +86,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        start_feed_readers(client);
+        start_rss_readers(client);
         start_atom_readers(client);
     }
 }
