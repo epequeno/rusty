@@ -6,5 +6,9 @@ docker run --rm -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build -
 docker build -t rusty .
 docker tag rusty epequeno/rusty
 docker push epequeno/rusty
-sleep 60
+
+echo "sleeping..."
+sleep 15
+
+echo "forcing new ecs deployment"
 aws ecs update-service --cluster rusty --service rusty-service --force-new-deployment > /dev/null

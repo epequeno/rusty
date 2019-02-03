@@ -1,30 +1,29 @@
 language: rust
 dist: trusty
-before_script:
-  - rustup component add clippy
-  - cargo install --force cargo-audit
-  - cargo install --force --git https://github.com/kbknapp/cargo-outdated
-script:
-  - cargo clippy
-  - cargo audit
-  - cargo outdated
 cache: cargo
-rust:
-  - stable
-  - beta
-  - nightly
-
+script: skip
 matrix:
   allow_failures:
     - rust: nightly
   fast_finish: true
-
-services:
-  - docker
-
 jobs:
   include:
+    - stage: test
+      rust: stable
+      script: ./ci/test.sh
+      if: branch != master
+    - stage: test
+      rust: beta
+      script: ./ci/test.sh
+      if: branch != master
+    - stage: test
+      rust: nightly
+      script: ./ci/test.sh
+      if: branch != master
+
     - stage: deploy
+      services:
+      - docker
       before_install:
       - pip install --user awscli
       - export PATH=$PATH:$HOME/.local/bin
