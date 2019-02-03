@@ -1,11 +1,11 @@
 //! rss and atom readers
 //! useful for rss debug: http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60
 use crate::SlackChannel;
-use atom_syndication::{Entry, Feed as AtomFeed};
+use atom_syndication::Feed as AtomFeed;
 use linked_hash_set::LinkedHashSet;
 use log::{debug, error};
 use reqwest;
-use rss::{Channel, Item};
+use rss::Channel;
 use slack::Sender;
 use std::thread;
 use std::time::Duration;
@@ -32,14 +32,11 @@ pub struct Feed {
 
 impl Feed {
     pub fn new(feed_type: FeedType, url: String) -> Feed {
-        match feed_type {
-            FeedType::Rss => {
-                debug!("creating new rss feed with: {}", &url);
-            }
-            FeedType::Atom => {
-                debug!("creating new atom feed with: {}", &url);
-            }
-        }
+        let t = match feed_type {
+            FeedType::Rss => "rss",
+            FeedType::Atom => "atom",
+        };
+        debug!("creating new {} feed with: {}", t, &url);
         let previous_titles: LinkedHashSet<String> = LinkedHashSet::new();
         Feed {
             url,
@@ -58,7 +55,10 @@ impl Feed {
                     Ok(chan) => chan
                         .into_items()
                         .iter()
-                        .map(|i| item_to_article(i.clone()))
+                        .map(|item| Article {
+                            url: item.link().unwrap_or("https://sanantoniodevs.com/").into(),
+                            title: item.title().unwrap_or("none").into(),
+                        })
                         .collect(),
                     Err(e) => {
                         error!("error with: {}: {}", self.url, e);
@@ -73,31 +73,17 @@ impl Feed {
                 feed.entries()
                     .to_vec()
                     .iter()
-                    .map(|e| entry_to_article(e.clone()))
+                    .map(|entry| Article {
+                        url: entry.title().into(),
+                        title: entry.id().into(),
+                    })
                     .collect()
             }
         }
     }
 }
 
-// convert an RSS Item
-fn item_to_article(item: Item) -> Article {
-    Article {
-        url: item.link().unwrap_or("https://sanantoniodevs.com/").into(),
-        title: item.title().unwrap_or("none").into(),
-    }
-}
-
-// convert an Atom Entrhy
-fn entry_to_article(entry: Entry) -> Article {
-    Article {
-        url: entry.title().into(),
-        title: entry.id().into(),
-    }
-}
-
 // READ LOOP
-
 pub fn read_feed(mut feed: Feed, sender: Sender) {
     let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
@@ -126,18 +112,18 @@ pub fn read_feed(mut feed: Feed, sender: Sender) {
         debug!("got {} articles from {}", articles.len(), feed.url);
 
         // find any new, unseen items
-        let mut new_atrticles: Vec<Article> = Vec::new();
+        let mut new_articles: Vec<Article> = Vec::new();
         for article in articles {
             let title = article.title.clone();
             if !feed.previous_titles.contains(&title) {
                 debug!("found new title: {}", title);
-                new_atrticles.push(article.clone());
+                new_articles.push(article.clone());
                 feed.previous_titles.insert(title);
             }
         }
 
         // send new items
-        for article in new_atrticles {
+        for article in new_articles {
             let msg = format!("<{}|{}>", article.url, article.title);
             debug!("sending channel {}: {}", chan_id, msg);
             let _ = sender.send_message(&chan_id, &msg);

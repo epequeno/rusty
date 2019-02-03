@@ -29,6 +29,7 @@ impl SlackChannel {
 }
 
 fn start_readers(client: &RtmClient) {
+    // RSS
     let rss_feeds = [
         (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
         (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
@@ -52,6 +53,7 @@ fn start_readers(client: &RtmClient) {
         });
     }
 
+    // ATOM
     let atom_feeds = [
         (SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml"),
         (
