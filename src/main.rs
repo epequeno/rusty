@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
@@ -87,7 +86,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        // start_feed_readers(client);
+        start_feed_readers(client);
         start_atom_readers(client);
     }
 }
