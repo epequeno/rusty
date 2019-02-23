@@ -12,8 +12,8 @@ use std::time::Duration;
 
 pub trait Feed {
     fn read(&self) -> Vec<Article>;
-    fn get_feed_info(&self) -> FeedInfo;
-    fn set_feed_info(&mut self, feed_info: FeedInfo);
+    fn get_info(&self) -> FeedInfo;
+    fn set_info(&mut self, info: FeedInfo);
     fn get_previous_titles(&self) -> LinkedHashSet<String>;
     fn insert_title(&mut self, title: String);
     fn pop(&mut self);
@@ -33,17 +33,17 @@ pub struct FeedInfo {
 
 #[derive(Clone)]
 pub struct Rss {
-    feed_info: FeedInfo,
+    pub info: FeedInfo,
 }
 
 #[derive(Clone)]
 pub struct Atom {
-    feed_info: FeedInfo,
+    pub info: FeedInfo,
 }
 
 #[derive(Clone)]
 pub struct PythonInsider {
-    feed_info: FeedInfo,
+    pub info: FeedInfo,
 }
 
 impl FeedInfo {
@@ -58,33 +58,27 @@ impl FeedInfo {
 impl Rss {
     pub fn new() -> Rss {
         let default_info = FeedInfo::new();
-        Rss {
-            feed_info: default_info,
-        }
+        Rss { info: default_info }
     }
 }
 
 impl Atom {
     pub fn new() -> Atom {
         let default_info = FeedInfo::new();
-        Atom {
-            feed_info: default_info,
-        }
+        Atom { info: default_info }
     }
 }
 
 impl PythonInsider {
     pub fn new() -> PythonInsider {
         let default_info = FeedInfo::new();
-        PythonInsider {
-            feed_info: default_info,
-        }
+        PythonInsider { info: default_info }
     }
 }
 
 impl Feed for Rss {
     fn read(&self) -> Vec<Article> {
-        match &self.feed_info.url {
+        match &self.info.url {
             Some(u) => {
                 let channel = Channel::from_url(u);
                 match channel {
@@ -103,30 +97,30 @@ impl Feed for Rss {
         }
     }
 
-    fn get_feed_info(&self) -> FeedInfo {
-        self.feed_info.clone()
+    fn get_info(&self) -> FeedInfo {
+        self.info.clone()
     }
 
-    fn set_feed_info(&mut self, feed_info: FeedInfo) {
-        self.feed_info = feed_info;
+    fn set_info(&mut self, feed_info: FeedInfo) {
+        self.info = feed_info;
     }
 
     fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.feed_info.clone().previous_titles
+        self.info.clone().previous_titles
     }
 
     fn insert_title(&mut self, title: String) {
-        self.feed_info.previous_titles.insert(title);
+        self.info.previous_titles.insert(title);
     }
 
     fn pop(&mut self) {
-        self.feed_info.previous_titles.pop_front();
+        self.info.previous_titles.pop_front();
     }
 }
 
 impl Feed for Atom {
     fn read(&self) -> Vec<Article> {
-        match &self.feed_info.url {
+        match &self.info.url {
             Some(u) => {
                 let result = reqwest::get(u).unwrap().text().unwrap();
                 let feed: AtomFeed = result.parse().unwrap();
@@ -143,30 +137,30 @@ impl Feed for Atom {
         }
     }
 
-    fn get_feed_info(&self) -> FeedInfo {
-        self.feed_info.clone()
+    fn get_info(&self) -> FeedInfo {
+        self.info.clone()
     }
 
-    fn set_feed_info(&mut self, feed_info: FeedInfo) {
-        self.feed_info = feed_info;
+    fn set_info(&mut self, feed_info: FeedInfo) {
+        self.info = feed_info;
     }
 
     fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.feed_info.clone().previous_titles
+        self.info.clone().previous_titles
     }
 
     fn insert_title(&mut self, title: String) {
-        self.feed_info.previous_titles.insert(title);
+        self.info.previous_titles.insert(title);
     }
 
     fn pop(&mut self) {
-        self.feed_info.previous_titles.pop_front();
+        self.info.previous_titles.pop_front();
     }
 }
 
 impl Feed for PythonInsider {
     fn read(&self) -> Vec<Article> {
-        match &self.feed_info.url {
+        match &self.info.url {
             Some(u) => {
                 let result = reqwest::get(u).unwrap().text().unwrap();
                 let feed: AtomFeed = result.parse().unwrap();
@@ -191,24 +185,24 @@ impl Feed for PythonInsider {
         }
     }
 
-    fn get_feed_info(&self) -> FeedInfo {
-        self.feed_info.clone()
+    fn get_info(&self) -> FeedInfo {
+        self.info.clone()
     }
 
-    fn set_feed_info(&mut self, feed_info: FeedInfo) {
-        self.feed_info = feed_info;
+    fn set_info(&mut self, feed_info: FeedInfo) {
+        self.info = feed_info;
     }
 
     fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.feed_info.clone().previous_titles
+        self.info.clone().previous_titles
     }
 
     fn insert_title(&mut self, title: String) {
-        self.feed_info.previous_titles.insert(title);
+        self.info.previous_titles.insert(title);
     }
 
     fn pop(&mut self) {
-        self.feed_info.previous_titles.pop_front();
+        self.info.previous_titles.pop_front();
     }
 }
 
@@ -222,7 +216,7 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel, sender: Sender) {
     debug!(
         "got {} articles from {}",
         articles.len(),
-        feed.get_feed_info().url.unwrap()
+        feed.get_info().url.unwrap()
     );
     for article in articles {
         feed.insert_title(article.title);
@@ -243,7 +237,7 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel, sender: Sender) {
         debug!(
             "got {} articles from {}",
             articles.len(),
-            feed.get_feed_info().url.unwrap_or_else(|| "err".into())
+            feed.get_info().url.unwrap_or_else(|| "err".into())
         );
 
         // find any new, unseen items

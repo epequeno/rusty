@@ -2,7 +2,7 @@ use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
 use log::info;
-use reader::{read_feed, Atom, Feed, FeedInfo, PythonInsider, Rss};
+use reader::{read_feed, Atom, FeedInfo, PythonInsider, Rss};
 
 struct Handler;
 
@@ -47,12 +47,11 @@ fn start_readers(client: &RtmClient) {
     for (channel, url) in rss_feeds.iter() {
         let sender = client.sender().clone();
         let chan = channel.clone();
-        let u = Some(url.to_string());
+        let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Rss::new();
-            let mut feed_info = FeedInfo::new();
-            feed_info.url = u;
-            feed.set_feed_info(feed_info);
+            feed.info = FeedInfo::new();
+            feed.info.url = url;
             read_feed(feed, chan, sender);
         });
     }
@@ -63,12 +62,11 @@ fn start_readers(client: &RtmClient) {
     for (channel, url) in atom_feeds.iter() {
         let sender = client.sender().clone();
         let chan = channel.clone();
-        let u = Some(url.to_string());
+        let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Atom::new();
-            let mut feed_info = FeedInfo::new();
-            feed_info.url = u;
-            feed.set_feed_info(feed_info);
+            feed.info = FeedInfo::new();
+            feed.info.url = url;
             read_feed(feed, chan, sender);
         });
     }
@@ -76,9 +74,8 @@ fn start_readers(client: &RtmClient) {
     // PythonInsider
     let sender = client.sender().clone();
     let mut feed = PythonInsider::new();
-    let mut feed_info = FeedInfo::new();
-    feed_info.url = Some("http://feeds.feedburner.com/PythonInsider".to_string());
-    feed.set_feed_info(feed_info);
+    feed.info = FeedInfo::new();
+    feed.info.url = Some("http://feeds.feedburner.com/PythonInsider".to_string());
     std::thread::spawn(move || {
         read_feed(feed, SlackChannel::Python, sender);
     });
