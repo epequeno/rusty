@@ -213,7 +213,7 @@ impl Feed for PythonInsider {
 }
 
 pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel, sender: Sender) {
-    let sleep_duration = Duration::from_secs(120);
+    let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
 
     // initial run
