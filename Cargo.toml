@@ -1,6 +1,6 @@
 [package]
 name = "rusty-slackbot"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Steven Pequeno <steven@pequeno.in>"]
 description = "a slack bot for sanantoniodevs.slack.com"
 license = "GPL-3.0-or-later"
