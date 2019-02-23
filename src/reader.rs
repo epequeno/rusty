@@ -57,22 +57,25 @@ impl FeedInfo {
 
 impl Rss {
     pub fn new() -> Rss {
-        let default_info = FeedInfo::new();
-        Rss { info: default_info }
+        Rss {
+            info: FeedInfo::new(),
+        }
     }
 }
 
 impl Atom {
     pub fn new() -> Atom {
-        let default_info = FeedInfo::new();
-        Atom { info: default_info }
+        Atom {
+            info: FeedInfo::new(),
+        }
     }
 }
 
 impl PythonInsider {
     pub fn new() -> PythonInsider {
-        let default_info = FeedInfo::new();
-        PythonInsider { info: default_info }
+        PythonInsider {
+            info: FeedInfo::new(),
+        }
     }
 }
 
