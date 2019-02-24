@@ -171,12 +171,12 @@ impl Feed for PythonInsider {
                     .to_vec()
                     .iter()
                     .map(|entry| {
-                        let mut url = String::new();
-                        for link in entry.links() {
-                            if link.rel() == "alternate" {
-                                url = link.href().into();
-                            };
-                        }
+                        let url = entry
+                            .links()
+                            .iter()
+                            .filter(|l| l.rel() == "alternate")
+                            .map(|l| String::from(l.href()))
+                            .collect();
                         Article {
                             url,
                             title: entry.title().into(),
