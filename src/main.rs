@@ -2,7 +2,7 @@ use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
 use log::info;
-use reader::{read_feed, Atom, FeedInfo, PythonInsider, Rss};
+use reader::*;
 
 struct Handler;
 
@@ -70,6 +70,23 @@ fn start_readers(client: &RtmClient) {
             read_feed(feed, chan, sender);
         });
     }
+
+    // YouTube
+    let sender = client.sender().clone();
+    let mut feed = TGIK::new();
+    feed.info.url =
+        Some("https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg".into());
+    std::thread::spawn(move || {
+        read_feed(feed, SlackChannel::BattleBots, sender);
+    });
+
+    let sender = client.sender().clone();
+    let mut feed = JonHoo::new();
+    feed.info.url =
+        Some("https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ".into());
+    std::thread::spawn(move || {
+        read_feed(feed, SlackChannel::BattleBots, sender);
+    });
 
     // PythonInsider
     let sender = client.sender().clone();
