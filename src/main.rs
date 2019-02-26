@@ -28,7 +28,7 @@ impl SlackChannel {
     }
 }
 
-fn start_readers(client: &RtmClient) {
+fn start_readers() {
     // RSS
     let rss_feeds = [
         (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
@@ -45,14 +45,13 @@ fn start_readers(client: &RtmClient) {
     ];
 
     for (channel, url) in rss_feeds.iter() {
-        let sender = client.sender().clone();
         let chan = channel.clone();
         let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Rss::new();
             feed.info = FeedInfo::new();
             feed.info.url = url;
-            read_feed(feed, chan, sender);
+            read_feed(feed, chan);
         });
     }
 
@@ -60,41 +59,37 @@ fn start_readers(client: &RtmClient) {
     let atom_feeds = [(SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml")];
 
     for (channel, url) in atom_feeds.iter() {
-        let sender = client.sender().clone();
         let chan = channel.clone();
         let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Atom::new();
             feed.info = FeedInfo::new();
             feed.info.url = url;
-            read_feed(feed, chan, sender);
+            read_feed(feed, chan);
         });
     }
 
     // YouTube
-    let sender = client.sender().clone();
     let mut feed = TGIK::new();
     feed.info.url =
         Some("https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg".into());
     std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::BattleBots, sender);
+        read_feed(feed, SlackChannel::BattleBots);
     });
 
-    let sender = client.sender().clone();
     let mut feed = JonHoo::new();
     feed.info.url =
         Some("https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ".into());
     std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::BattleBots, sender);
+        read_feed(feed, SlackChannel::BattleBots);
     });
 
     // PythonInsider
-    let sender = client.sender().clone();
     let mut feed = PythonInsider::new();
     feed.info = FeedInfo::new();
     feed.info.url = Some("http://feeds.feedburner.com/PythonInsider".to_string());
     std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::Python, sender);
+        read_feed(feed, SlackChannel::Python);
     });
 }
 
@@ -112,7 +107,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        start_readers(client);
+        start_readers();
     }
 }
 

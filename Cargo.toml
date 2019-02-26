@@ -1,6 +1,6 @@
 [package]
 name = "rusty-slackbot"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Steven Pequeno <steven@pequeno.in>"]
 description = "a slack bot for sanantoniodevs.slack.com"
 license = "GPL-3.0-or-later"
@@ -12,6 +12,7 @@ edition = "2018"
 
 [dependencies]
 slack = "0.22"
+slack_api = "0.21"
 openssl-probe = "0.1.2"
 env_logger = "0.6.0"
 log = "0.4.6"

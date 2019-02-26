@@ -6,7 +6,7 @@ use linked_hash_set::LinkedHashSet;
 use log::debug;
 use reqwest;
 use rss::Channel;
-use slack::Sender;
+use slack_api;
 use std::thread;
 use std::time::Duration;
 
@@ -316,9 +316,13 @@ impl Feed for JonHoo {
     }
 }
 
-pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel, sender: Sender) {
+pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel) {
     let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
+    let token: String = std::env::vars()
+        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
+        .map(|(_, v)| v)
+        .collect();
 
     // initial run
     let chan_id = channel.channel_id();
@@ -363,9 +367,14 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel, sender: Sender) {
 
         // send new items
         for article in new_articles {
-            let msg = format!("<{}|{}>", article.url, article.title);
-            debug!("sending channel {}: {}", chan_id, msg);
-            let _ = sender.send_message(&chan_id, &msg);
+            let text = format!("<{}|{}>", article.url, article.title);
+            debug!("sending channel {}: {}", &chan_id, &text);
+            let client = slack_api::requests::default_client().unwrap();
+            let mut msg = slack_api::chat::PostMessageRequest::default();
+            msg.channel = &chan_id;
+            msg.text = &text;
+            msg.as_user = Some(true);
+            debug!("{:?}", slack_api::chat::post_message(&client, &token, &msg));
         }
 
         thread::sleep(sleep_duration);
