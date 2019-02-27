@@ -323,6 +323,7 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel) {
         .filter(|(k, _)| k == "SLACKBOT_TOKEN")
         .map(|(_, v)| v)
         .collect();
+    let client = slack_api::requests::default_client().unwrap();
 
     // initial run
     let chan_id = channel.channel_id();
@@ -368,8 +369,7 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel) {
         // send new items
         for article in new_articles {
             let text = format!("<{}|{}>", article.url, article.title);
-            debug!("sending channel {}: {}", &chan_id, &text);
-            let client = slack_api::requests::default_client().unwrap();
+            debug!("sending channel {}: {}", &chan_id, &text);;
             let mut msg = slack_api::chat::PostMessageRequest::default();
             msg.channel = &chan_id;
             msg.text = &text;
