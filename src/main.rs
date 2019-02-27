@@ -16,7 +16,7 @@ pub enum SlackChannel {
 }
 
 impl SlackChannel {
-    pub fn channel_id(&self) -> String {
+    pub fn channel_id(&self) -> &'static str {
         match self {
             SlackChannel::Aws => "CA6MUA4LU",
             SlackChannel::Rust => "C8EHWNKHV",
@@ -24,7 +24,6 @@ impl SlackChannel {
             SlackChannel::Python => "C6DTBQK4P",
             SlackChannel::BattleBots => "CD31RPEFR",
         }
-        .into()
     }
 }
 
@@ -44,8 +43,8 @@ fn start_readers() {
         (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
     ];
 
-    for (channel, url) in rss_feeds.iter() {
-        let chan = channel.clone();
+    let _ = rss_feeds.iter().map(|(chan, url)| {
+        let chan = chan.clone();
         let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Rss::new();
@@ -53,13 +52,13 @@ fn start_readers() {
             feed.info.url = url;
             read_feed(feed, chan);
         });
-    }
+    });
 
     // ATOM
     let atom_feeds = [(SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml")];
 
-    for (channel, url) in atom_feeds.iter() {
-        let chan = channel.clone();
+    let _ = atom_feeds.iter().map(|(chan, url)| {
+        let chan = chan.clone();
         let url = Some(url.to_string());
         std::thread::spawn(move || {
             let mut feed = Atom::new();
@@ -67,7 +66,7 @@ fn start_readers() {
             feed.info.url = url;
             read_feed(feed, chan);
         });
-    }
+    });
 
     // YouTube
     let mut feed = TGIK::new();
