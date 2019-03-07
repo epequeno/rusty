@@ -6,7 +6,7 @@ use reader::*;
 
 struct Handler;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SlackChannel {
     Aws,
     Rust,
@@ -27,71 +27,6 @@ impl SlackChannel {
     }
 }
 
-fn start_readers() {
-    // RSS
-    let rss_feeds = [
-        (SlackChannel::Rust, "https://blog.japaric.io/index.xml"),
-        (SlackChannel::Rust, "https://newrustacean.com/feed.xml"),
-        (SlackChannel::Rust, "https://nercury.github.io/feed.xml"),
-        (SlackChannel::Rust, "https://os.phil-opp.com/rss.xml"),
-        (SlackChannel::Rust, "https://this-week-in-rust.org/rss.xml"),
-        (
-            SlackChannel::Rust,
-            "https://rusty-spike.blubrry.net/feed/podcast/",
-        ),
-        (SlackChannel::Aws, "https://aws.amazon.com/new/feed/"),
-        (SlackChannel::Kubernetes, "https://kubernetes.io/feed.xml"),
-    ];
-
-    let _ = rss_feeds.iter().map(|(chan, url)| {
-        let chan = chan.clone();
-        let url = Some(url.to_string());
-        std::thread::spawn(move || {
-            let mut feed = Rss::new();
-            feed.info = FeedInfo::new();
-            feed.info.url = url;
-            read_feed(feed, chan);
-        });
-    });
-
-    // ATOM
-    let atom_feeds = [(SlackChannel::Rust, "https://blog.rust-lang.org/feed.xml")];
-
-    let _ = atom_feeds.iter().map(|(chan, url)| {
-        let chan = chan.clone();
-        let url = Some(url.to_string());
-        std::thread::spawn(move || {
-            let mut feed = Atom::new();
-            feed.info = FeedInfo::new();
-            feed.info.url = url;
-            read_feed(feed, chan);
-        });
-    });
-
-    // YouTube
-    let mut feed = TGIK::new();
-    feed.info.url =
-        Some("https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg".into());
-    std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::BattleBots);
-    });
-
-    let mut feed = JonHoo::new();
-    feed.info.url =
-        Some("https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ".into());
-    std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::BattleBots);
-    });
-
-    // PythonInsider
-    let mut feed = PythonInsider::new();
-    feed.info = FeedInfo::new();
-    feed.info.url = Some("http://feeds.feedburner.com/PythonInsider".to_string());
-    std::thread::spawn(move || {
-        read_feed(feed, SlackChannel::Python);
-    });
-}
-
 #[allow(unused_variables)]
 impl EventHandler for Handler {
     fn on_event(&mut self, client: &RtmClient, event: Event) {
@@ -106,7 +41,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        start_readers();
+        std::thread::spawn(read_feeds);
     }
 }
 
