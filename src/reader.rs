@@ -268,32 +268,32 @@ pub fn read_feeds() {
         ),
     ]);
 
-    // inital run
-    for feed in &mut all_feeds {
-        match feed.read() {
-            Ok(articles) => {
-                info!(
-                    "got {} articles from {:?} {}",
-                    articles.len(),
-                    feed.feed_type,
-                    feed.url
-                );
-                let titles = articles.iter().map(|article| {
-                    let Title(t) = &article.title;
-                    t
-                });
-                for title in titles {
-                    feed.previous_titles.insert(title.clone());
-                }
-            }
-            Err(e) => error!("{}", e),
-        }
-    }
-    thread::sleep(sleep_duration);
-
     // main loop
     loop {
         for feed in &mut all_feeds {
+            // initial run
+            if feed.previous_titles.is_empty() {
+                match feed.read() {
+                    Ok(articles) => {
+                        info!(
+                            "got {} articles from {:?} {}",
+                            articles.len(),
+                            feed.feed_type,
+                            feed.url
+                        );
+                        let titles = articles.iter().map(|article| {
+                            let Title(t) = &article.title;
+                            t
+                        });
+                        for title in titles {
+                            feed.previous_titles.insert(title.clone());
+                        }
+                    }
+                    Err(e) => error!("{}", e),
+                }
+                continue;
+            }
+
             while feed.previous_titles.len() > titles_to_retain {
                 info!("popping: {:?}", feed.previous_titles.pop_front());
             }
