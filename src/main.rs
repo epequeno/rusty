@@ -2,7 +2,7 @@ use slack::{Event, EventHandler, Message, RtmClient};
 mod reader;
 use env_logger;
 use log::info;
-use reader::*;
+use reader::read_feeds;
 
 struct Handler;
 
@@ -16,7 +16,7 @@ pub enum SlackChannel {
 }
 
 impl SlackChannel {
-    pub fn channel_id(&self) -> &'static str {
+    pub fn id(&self) -> &'static str {
         match self {
             SlackChannel::Aws => "CA6MUA4LU",
             SlackChannel::Rust => "C8EHWNKHV",
