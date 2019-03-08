@@ -1,322 +1,215 @@
 //! rss and atom readers
 //! useful for rss debug: http://lorem-rss.herokuapp.com/feed?unit=minute&interval=60
 use crate::SlackChannel;
-use atom_syndication::Feed as AtomFeed;
+use atom_syndication::{Entry, Feed as AtomFeed};
+use failure::Error;
 use linked_hash_set::LinkedHashSet;
-use log::debug;
+use log::*;
 use reqwest;
-use rss::Channel;
+use rss::{Channel, Item};
 use slack_api;
 use std::thread;
 use std::time::Duration;
 
-pub trait Feed {
-    fn read(&self) -> Vec<Article>;
-    fn get_info(&self) -> FeedInfo;
-    fn set_info(&mut self, info: FeedInfo);
-    fn get_previous_titles(&self) -> LinkedHashSet<String>;
-    fn insert_title(&mut self, title: String);
-    fn pop(&mut self);
+#[derive(Debug, Clone)]
+pub struct Title(String);
+
+#[derive(Debug)]
+struct ArticleUrl(String);
+
+#[derive(Debug, Clone)]
+pub struct FeedUrl(String);
+
+#[derive(Debug)]
+pub struct Article {
+    title: Title,
+    url: ArticleUrl,
+}
+
+impl Default for Title {
+    fn default() -> Title {
+        let default_title = "Default Title".to_string();
+        Title(default_title)
+    }
+}
+
+impl std::fmt::Display for Title {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self {
+            Title(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+impl Default for ArticleUrl {
+    fn default() -> ArticleUrl {
+        let default_url = "https://satx.dev".to_string();
+        ArticleUrl(default_url)
+    }
+}
+
+impl std::fmt::Display for ArticleUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self {
+            ArticleUrl(u) => write!(f, "{}", u),
+        }
+    }
+}
+
+impl Default for FeedUrl {
+    fn default() -> FeedUrl {
+        let default_url = "https://satx.dev".to_string();
+        FeedUrl(default_url)
+    }
+}
+
+impl std::fmt::Display for FeedUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self {
+            FeedUrl(u) => write!(f, "{}", u),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
-pub struct Article {
-    title: String,
-    url: String,
+pub enum FeedType {
+    Rss,
+    Atom,
+    PythonInsider,
+    TGIK,
+    JonHoo,
 }
 
-#[derive(Clone)]
-pub struct FeedInfo {
-    pub url: Option<String>,
-    previous_titles: LinkedHashSet<String>,
+pub trait ReadFeed {
+    fn read(&self) -> Result<Vec<Article>, Error>;
 }
 
-#[derive(Clone)]
-pub struct Rss {
-    pub info: FeedInfo,
+fn read_rss(feed: &Feed) -> Result<Vec<Item>, rss::Error> {
+    let FeedUrl(u) = &feed.url;
+    let channel = Channel::from_url(&u);
+    Ok(channel?.into_items())
 }
 
-#[derive(Clone)]
-pub struct Atom {
-    pub info: FeedInfo,
+fn get_atom_feed(url: &str) -> Result<String, reqwest::Error> {
+    let timeout = Duration::from_secs(3);
+    let client = reqwest::Client::builder().timeout(timeout).build()?;
+    let mut res = client.get(url).send()?;
+    Ok(res.text()?)
 }
 
-#[derive(Clone)]
-pub struct PythonInsider {
-    pub info: FeedInfo,
+fn read_atom(feed: &Feed) -> Result<Vec<Entry>, Error> {
+    let FeedUrl(url) = &feed.url;
+    let text = get_atom_feed(url)?;
+    let atom: AtomFeed = text.parse()?;
+    Ok(atom.entries().to_vec())
 }
 
-#[derive(Clone)]
-pub struct TGIK {
-    pub info: FeedInfo,
-}
+impl ReadFeed for Feed {
+    fn read(&self) -> Result<Vec<Article>, Error> {
+        debug!("reading {:?} feed: {}", self.feed_type, self.url);
+        match &self.feed_type {
+            FeedType::Rss => Ok(read_rss(&self)?
+                .iter()
+                .map(|item| Article {
+                    url: ArticleUrl::from_str(item.link().unwrap_or_default()),
+                    title: Title::from_str(item.title().unwrap_or_default()),
+                })
+                .collect()),
 
-#[derive(Clone)]
-pub struct JonHoo {
-    pub info: FeedInfo,
-}
+            FeedType::Atom => Ok(read_atom(&self)?
+                .iter()
+                .map(|entry| Article {
+                    url: ArticleUrl::from_str(entry.id()),
+                    title: Title::from_str(entry.title()),
+                })
+                .collect()),
 
-impl FeedInfo {
-    pub fn new() -> FeedInfo {
-        FeedInfo {
-            url: None,
-            previous_titles: LinkedHashSet::new(),
-        }
-    }
-}
-
-impl Rss {
-    pub fn new() -> Rss {
-        Rss {
-            info: FeedInfo::new(),
-        }
-    }
-}
-
-impl Atom {
-    pub fn new() -> Atom {
-        Atom {
-            info: FeedInfo::new(),
-        }
-    }
-}
-
-impl PythonInsider {
-    pub fn new() -> PythonInsider {
-        PythonInsider {
-            info: FeedInfo::new(),
-        }
-    }
-}
-
-impl TGIK {
-    pub fn new() -> TGIK {
-        TGIK {
-            info: FeedInfo::new(),
-        }
-    }
-}
-
-impl JonHoo {
-    pub fn new() -> JonHoo {
-        JonHoo {
-            info: FeedInfo::new(),
-        }
-    }
-}
-
-impl Feed for Rss {
-    fn read(&self) -> Vec<Article> {
-        match &self.info.url {
-            Some(u) => {
-                let channel = Channel::from_url(u);
-                match channel {
-                    Ok(chan) => chan
-                        .into_items()
+            FeedType::PythonInsider => Ok(read_atom(&self)?
+                .iter()
+                .map(|entry| {
+                    let url: String = entry
+                        .links()
                         .iter()
-                        .map(|item| Article {
-                            url: item.link().unwrap_or("https://sanantoniodevs.com/").into(),
-                            title: item.title().unwrap_or("none").into(),
-                        })
-                        .collect(),
-                    Err(_) => Vec::new(),
-                }
-            }
-            None => Vec::new(),
+                        .filter(|l| l.rel() == "alternate")
+                        .map(|l| String::from(l.href()))
+                        .collect();
+                    Article {
+                        url: ArticleUrl::from_str(&url),
+                        title: Title::from_str(entry.title()),
+                    }
+                })
+                .collect()),
+
+            FeedType::TGIK => Ok(read_atom(&self)?
+                .iter()
+                .filter(|entry| entry.title().starts_with("TGI Kubernetes "))
+                .map(|entry| {
+                    let url = match entry.links().first() {
+                        Some(l) => ArticleUrl::from_str(l.href()),
+                        None => ArticleUrl::default(),
+                    };
+                    Article {
+                        url,
+                        title: Title::from_str(entry.title()),
+                    }
+                })
+                .collect()),
+
+            FeedType::JonHoo => Ok(read_atom(&self)?
+                .iter()
+                .map(|entry| {
+                    let url = match entry.links().first() {
+                        Some(l) => ArticleUrl::from_str(l.href()),
+                        None => ArticleUrl::default(),
+                    };
+                    Article {
+                        url,
+                        title: Title::from_str(entry.title()),
+                    }
+                })
+                .collect()),
         }
-    }
-
-    fn get_info(&self) -> FeedInfo {
-        self.info.clone()
-    }
-
-    fn set_info(&mut self, feed_info: FeedInfo) {
-        self.info = feed_info;
-    }
-
-    fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.info.clone().previous_titles
-    }
-
-    fn insert_title(&mut self, title: String) {
-        self.info.previous_titles.insert(title);
-    }
-
-    fn pop(&mut self) {
-        self.info.previous_titles.pop_front();
     }
 }
 
-impl Feed for Atom {
-    fn read(&self) -> Vec<Article> {
-        match &self.info.url {
-            Some(u) => {
-                let result = reqwest::get(u).unwrap().text().unwrap();
-                let feed: AtomFeed = result.parse().unwrap();
-                feed.entries()
-                    .to_vec()
-                    .iter()
-                    .map(|entry| Article {
-                        url: entry.id().into(),
-                        title: entry.title().into(),
-                    })
-                    .collect()
-            }
-            None => Vec::new(),
+#[derive(Clone, Debug)]
+pub struct Feed {
+    pub url: FeedUrl,
+    pub feed_type: FeedType,
+    pub previous_titles: LinkedHashSet<String>,
+    pub channel: SlackChannel,
+}
+
+impl Feed {
+    pub fn new(url: &str, feed_type: FeedType, channel: SlackChannel) -> Feed {
+        Feed {
+            url: FeedUrl::from_str(url),
+            feed_type,
+            previous_titles: LinkedHashSet::new(),
+            channel,
         }
-    }
-
-    fn get_info(&self) -> FeedInfo {
-        self.info.clone()
-    }
-
-    fn set_info(&mut self, feed_info: FeedInfo) {
-        self.info = feed_info;
-    }
-
-    fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.info.clone().previous_titles
-    }
-
-    fn insert_title(&mut self, title: String) {
-        self.info.previous_titles.insert(title);
-    }
-
-    fn pop(&mut self) {
-        self.info.previous_titles.pop_front();
     }
 }
 
-impl Feed for PythonInsider {
-    fn read(&self) -> Vec<Article> {
-        match &self.info.url {
-            Some(u) => {
-                let result = reqwest::get(u).unwrap().text().unwrap();
-                let feed: AtomFeed = result.parse().unwrap();
-                feed.entries()
-                    .to_vec()
-                    .iter()
-                    .map(|entry| {
-                        let url = entry
-                            .links()
-                            .iter()
-                            .filter(|l| l.rel() == "alternate")
-                            .map(|l| String::from(l.href()))
-                            .collect();
-                        Article {
-                            url,
-                            title: entry.title().into(),
-                        }
-                    })
-                    .collect()
-            }
-            None => Vec::new(),
-        }
-    }
-
-    fn get_info(&self) -> FeedInfo {
-        self.info.clone()
-    }
-
-    fn set_info(&mut self, feed_info: FeedInfo) {
-        self.info = feed_info;
-    }
-
-    fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.info.clone().previous_titles
-    }
-
-    fn insert_title(&mut self, title: String) {
-        self.info.previous_titles.insert(title);
-    }
-
-    fn pop(&mut self) {
-        self.info.previous_titles.pop_front();
+impl ArticleUrl {
+    fn from_str(s: &str) -> ArticleUrl {
+        ArticleUrl(String::from(s))
     }
 }
 
-impl Feed for TGIK {
-    fn read(&self) -> Vec<Article> {
-        match &self.info.url {
-            Some(u) => {
-                let result = reqwest::get(u).unwrap().text().unwrap();
-                let feed: AtomFeed = result.parse().unwrap();
-                feed.entries()
-                    .to_vec()
-                    .iter()
-                    .filter(|entry| entry.title().starts_with("TGI Kubernetes "))
-                    .map(|entry| Article {
-                        url: entry.links().first().unwrap().href().into(),
-                        title: entry.title().into(),
-                    })
-                    .collect()
-            }
-            None => Vec::new(),
-        }
-    }
-
-    fn get_info(&self) -> FeedInfo {
-        self.info.clone()
-    }
-
-    fn set_info(&mut self, feed_info: FeedInfo) {
-        self.info = feed_info;
-    }
-
-    fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.info.clone().previous_titles
-    }
-
-    fn insert_title(&mut self, title: String) {
-        self.info.previous_titles.insert(title);
-    }
-
-    fn pop(&mut self) {
-        self.info.previous_titles.pop_front();
+impl Title {
+    fn from_str(s: &str) -> Title {
+        Title(String::from(s))
     }
 }
 
-impl Feed for JonHoo {
-    fn read(&self) -> Vec<Article> {
-        match &self.info.url {
-            Some(u) => {
-                let result = reqwest::get(u).unwrap().text().unwrap();
-                let feed: AtomFeed = result.parse().unwrap();
-                feed.entries()
-                    .to_vec()
-                    .iter()
-                    .map(|entry| Article {
-                        url: entry.links().first().unwrap().href().into(),
-                        title: entry.title().into(),
-                    })
-                    .collect()
-            }
-            None => Vec::new(),
-        }
-    }
-
-    fn get_info(&self) -> FeedInfo {
-        self.info.clone()
-    }
-
-    fn set_info(&mut self, feed_info: FeedInfo) {
-        self.info = feed_info;
-    }
-
-    fn get_previous_titles(&self) -> LinkedHashSet<String> {
-        self.info.clone().previous_titles
-    }
-
-    fn insert_title(&mut self, title: String) {
-        self.info.previous_titles.insert(title);
-    }
-
-    fn pop(&mut self) {
-        self.info.previous_titles.pop_front();
+impl FeedUrl {
+    pub fn from_str(s: &str) -> FeedUrl {
+        FeedUrl(String::from(s))
     }
 }
 
-pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel) {
+pub fn read_feeds() {
     let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
     let token: String = std::env::vars()
@@ -325,58 +218,114 @@ pub fn read_feed<T: Feed>(mut feed: T, channel: SlackChannel) {
         .collect();
     let client = slack_api::requests::default_client().unwrap();
 
-    // initial run
-    let chan_id = channel.channel_id();
-    let articles = feed.read();
-    debug!(
-        "got {} articles from {}",
-        articles.len(),
-        feed.get_info().url.unwrap()
-    );
-    for article in articles {
-        feed.insert_title(article.title);
+    let rss_feeds = vec![
+        ("https://blog.japaric.io/index.xml", SlackChannel::Rust),
+        ("https://newrustacean.com/feed.xml", SlackChannel::Rust),
+        ("https://nercury.github.io/feed.xml", SlackChannel::Rust),
+        ("https://os.phil-opp.com/rss.xml", SlackChannel::Rust),
+        ("https://this-week-in-rust.org/rss.xml", SlackChannel::Rust),
+        (
+            "https://rusty-spike.blubrry.net/feed/podcast/",
+            SlackChannel::Rust,
+        ),
+        ("https://aws.amazon.com/new/feed/", SlackChannel::Aws),
+        ("https://kubernetes.io/feed.xml", SlackChannel::Kubernetes),
+    ];
+
+    let rss_feeds: Vec<Feed> = rss_feeds
+        .iter()
+        .map(|(url, _chan)| Feed::new(url, FeedType::Rss, SlackChannel::BattleBots))
+        .collect();
+
+    let atom_feeds = vec![(
+        "https://blog.rust-lang.org/feed.xml",
+        SlackChannel::BattleBots,
+    )];
+
+    let atom_feeds: Vec<Feed> = atom_feeds
+        .iter()
+        .map(|(url, _chan)| Feed::new(url, FeedType::Atom, SlackChannel::BattleBots))
+        .collect();
+
+    let mut all_feeds = Vec::new();
+    all_feeds.extend(rss_feeds);
+    all_feeds.extend(atom_feeds);
+    all_feeds.extend(vec![
+        Feed::new(
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg",
+            FeedType::TGIK,
+            SlackChannel::BattleBots,
+        ),
+        Feed::new(
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ",
+            FeedType::JonHoo,
+            SlackChannel::BattleBots,
+        ),
+        Feed::new(
+            "http://feeds.feedburner.com/PythonInsider",
+            FeedType::PythonInsider,
+            SlackChannel::BattleBots,
+        ),
+    ]);
+
+    // inital run
+    for feed in &mut all_feeds {
+        match feed.read() {
+            Ok(articles) => {
+                info!(
+                    "got {} articles from {:?} {}",
+                    articles.len(),
+                    feed.feed_type,
+                    feed.url
+                );
+                let titles = articles.iter().map(|article| match &article.title {
+                    Title(t) => t,
+                });
+                for title in titles {
+                    feed.previous_titles.insert(title.clone());
+                }
+            }
+            Err(e) => error!("{}", e),
+        }
     }
     thread::sleep(sleep_duration);
 
-    // main reader loop
+    // main loop
     loop {
-        // keep previously seen titles to a reasonable size
-        while feed.get_previous_titles().len() > titles_to_retain {
-            let mut previous_titles = feed.get_previous_titles();
-            let popped = previous_titles.pop_front().unwrap_or_else(|| "none".into());
-            debug!("popping previous title: {}", popped);
-            feed.pop();
-        }
+        for feed in &mut all_feeds {
+            while feed.previous_titles.len() > titles_to_retain {
+                info!("popping: {:?}", feed.previous_titles.pop_front());
+            }
 
-        let articles = feed.read();
-        debug!(
-            "got {} articles from {}",
-            articles.len(),
-            feed.get_info().url.unwrap_or_else(|| "err".into())
-        );
+            let chan_id = feed.channel.channel_id();
+            match feed.read() {
+                Ok(articles) => {
+                    info!(
+                        "got {} articles from {:?} {}",
+                        &articles.len(),
+                        feed.feed_type,
+                        feed.url
+                    );
+                    for article in articles {
+                        let Title(title) = &article.title;
 
-        // find any new, unseen items
-        let mut new_articles: Vec<Article> = Vec::new();
-        for article in articles {
-            let title = article.title.clone();
-            if !feed.get_previous_titles().contains(&title) {
-                debug!("found new title: {}", title);
-                new_articles.push(article.clone());
-                feed.insert_title(title);
+                        if !feed.previous_titles.contains(title) {
+                            info!("found new title: {}", title);
+                            feed.previous_titles.insert(title.to_string());
+
+                            let text = format!("<{}|{}>", article.url, article.title);
+                            info!("sending channel {}: {}", &chan_id, &text);;
+                            let mut msg = slack_api::chat::PostMessageRequest::default();
+                            msg.channel = &chan_id;
+                            msg.text = &text;
+                            msg.as_user = Some(true);
+                            debug!("{:?}", slack_api::chat::post_message(&client, &token, &msg));
+                        }
+                    }
+                }
+                Err(e) => error!("{}", e),
             }
         }
-
-        // send new items
-        for article in new_articles {
-            let text = format!("<{}|{}>", article.url, article.title);
-            debug!("sending channel {}: {}", &chan_id, &text);;
-            let mut msg = slack_api::chat::PostMessageRequest::default();
-            msg.channel = &chan_id;
-            msg.text = &text;
-            msg.as_user = Some(true);
-            debug!("{:?}", slack_api::chat::post_message(&client, &token, &msg));
-        }
-
         thread::sleep(sleep_duration);
     }
 }
