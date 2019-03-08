@@ -4,23 +4,21 @@ use crate::SlackChannel;
 use atom_syndication::{Entry, Feed as AtomFeed};
 use failure::Error;
 use linked_hash_set::LinkedHashSet;
-use log::*;
+use log::{debug, error, info};
 use reqwest;
 use rss::{Channel, Item};
 use slack_api;
 use std::thread;
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Title(String);
 
-#[derive(Debug)]
 struct ArticleUrl(String);
 
 #[derive(Debug, Clone)]
 pub struct FeedUrl(String);
 
-#[derive(Debug)]
 pub struct Article {
     title: Title,
     url: ArticleUrl,
@@ -28,7 +26,7 @@ pub struct Article {
 
 impl Default for Title {
     fn default() -> Title {
-        let default_title = "Default Title".to_string();
+        let default_title = String::from("Default Title");
         Title(default_title)
     }
 }
@@ -43,7 +41,7 @@ impl std::fmt::Display for Title {
 
 impl Default for ArticleUrl {
     fn default() -> ArticleUrl {
-        let default_url = "https://satx.dev".to_string();
+        let default_url = String::from("https://satx.dev");
         ArticleUrl(default_url)
     }
 }
@@ -58,7 +56,7 @@ impl std::fmt::Display for ArticleUrl {
 
 impl Default for FeedUrl {
     fn default() -> FeedUrl {
-        let default_url = "https://satx.dev".to_string();
+        let default_url = String::from("https://satx.dev");
         FeedUrl(default_url)
     }
 }
@@ -144,9 +142,10 @@ impl ReadFeed for Feed {
                 .iter()
                 .filter(|entry| entry.title().starts_with("TGI Kubernetes "))
                 .map(|entry| {
-                    let url = match entry.links().first() {
-                        Some(l) => ArticleUrl::from_str(l.href()),
-                        None => ArticleUrl::default(),
+                    let url = if let Some(link) = entry.links().first() {
+                        ArticleUrl::from_str(link.href())
+                    } else {
+                        ArticleUrl::default()
                     };
                     Article {
                         url,
@@ -158,9 +157,10 @@ impl ReadFeed for Feed {
             FeedType::JonHoo => Ok(read_atom(&self)?
                 .iter()
                 .map(|entry| {
-                    let url = match entry.links().first() {
-                        Some(l) => ArticleUrl::from_str(l.href()),
-                        None => ArticleUrl::default(),
+                    let url = if let Some(link) = entry.links().first() {
+                        ArticleUrl::from_str(link.href())
+                    } else {
+                        ArticleUrl::default()
                     };
                     Article {
                         url,
@@ -234,7 +234,7 @@ pub fn read_feeds() {
 
     let rss_feeds: Vec<Feed> = rss_feeds
         .iter()
-        .map(|(url, _chan)| Feed::new(url, FeedType::Rss, SlackChannel::BattleBots))
+        .map(|(url, chan)| Feed::new(url, FeedType::Rss, chan.clone()))
         .collect();
 
     let atom_feeds = vec![(
@@ -244,7 +244,7 @@ pub fn read_feeds() {
 
     let atom_feeds: Vec<Feed> = atom_feeds
         .iter()
-        .map(|(url, _chan)| Feed::new(url, FeedType::Atom, SlackChannel::BattleBots))
+        .map(|(url, chan)| Feed::new(url, FeedType::Atom, chan.clone()))
         .collect();
 
     let mut all_feeds = Vec::new();
@@ -278,8 +278,9 @@ pub fn read_feeds() {
                     feed.feed_type,
                     feed.url
                 );
-                let titles = articles.iter().map(|article| match &article.title {
-                    Title(t) => t,
+                let titles = articles.iter().map(|article| {
+                    let Title(t) = &article.title;
+                    t
                 });
                 for title in titles {
                     feed.previous_titles.insert(title.clone());
@@ -297,7 +298,7 @@ pub fn read_feeds() {
                 info!("popping: {:?}", feed.previous_titles.pop_front());
             }
 
-            let chan_id = feed.channel.channel_id();
+            let chan_id = feed.channel.id();
             match feed.read() {
                 Ok(articles) => {
                     info!(
