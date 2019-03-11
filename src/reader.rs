@@ -228,7 +228,10 @@ pub fn read_feeds() {
             "https://rusty-spike.blubrry.net/feed/podcast/",
             SlackChannel::Rust,
         ),
-        ("https://aws.amazon.com/new/feed/", SlackChannel::Aws),
+        (
+            "http://feeds.feedburner.com/AmazonWebServicesBlog",
+            SlackChannel::Aws,
+        ),
         ("https://kubernetes.io/feed.xml", SlackChannel::Kubernetes),
     ];
 
