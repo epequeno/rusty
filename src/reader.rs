@@ -242,7 +242,7 @@ pub fn read_feeds() {
 
     let atom_feeds = vec![(
         "https://blog.rust-lang.org/feed.xml",
-        SlackChannel::BattleBots,
+        SlackChannel::Rust,
     )];
 
     let atom_feeds: Vec<Feed> = atom_feeds
@@ -267,7 +267,7 @@ pub fn read_feeds() {
         Feed::new(
             "http://feeds.feedburner.com/PythonInsider",
             FeedType::PythonInsider,
-            SlackChannel::BattleBots,
+            SlackChannel::Python,
         ),
     ]);
 
