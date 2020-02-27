@@ -1,8 +1,11 @@
-use slack::{Event, EventHandler, Message, RtmClient};
+mod library;
 mod reader;
+
 use env_logger;
+use library::parse_add;
 use log::info;
 use reader::read_feeds;
+use slack::{Event, EventHandler, Message, RtmClient};
 
 struct Handler;
 
@@ -63,7 +66,10 @@ impl Handler {
             .as_ref()
             .unwrap();
         let text: String = message_standard.text.unwrap();
-        if text.contains(bot_id) {
+        if text.starts_with("!add ") {
+            info!("matched !add");
+            parse_add(&text, client)
+        } else if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);
         }

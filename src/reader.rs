@@ -90,8 +90,10 @@ fn read_rss(feed: &Feed) -> Result<Vec<Item>, rss::Error> {
 
 fn get_atom_feed(url: &str) -> Result<String, reqwest::Error> {
     let timeout = Duration::from_secs(3);
-    let client = reqwest::Client::builder().timeout(timeout).build()?;
-    let mut res = client.get(url).send()?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(timeout)
+        .build()?;
+    let res = client.get(url).send()?;
     Ok(res.text()?)
 }
 
@@ -240,10 +242,7 @@ pub fn read_feeds() {
         .map(|(url, chan)| Feed::new(url, FeedType::Rss, chan.clone()))
         .collect();
 
-    let atom_feeds = vec![(
-        "https://blog.rust-lang.org/feed.xml",
-        SlackChannel::Rust,
-    )];
+    let atom_feeds = vec![("https://blog.rust-lang.org/feed.xml", SlackChannel::Rust)];
 
     let atom_feeds: Vec<Feed> = atom_feeds
         .iter()
@@ -318,7 +317,7 @@ pub fn read_feeds() {
                             feed.previous_titles.insert(title.to_string());
 
                             let text = format!("<{}|{}>", article.url, article.title);
-                            info!("sending channel {}: {}", &chan_id, &text);;
+                            info!("sending channel {}: {}", &chan_id, &text);
                             let mut msg = slack_api::chat::PostMessageRequest::default();
                             msg.channel = &chan_id;
                             msg.text = &text;
