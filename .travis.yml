@@ -4,20 +4,18 @@ cache: cargo
 script: skip
 os: linux
 jobs:
+  allow_failures:
+    - rust: beta
+    - rust: nightly
+    - if: branch != master
   include:
     - stage: test
       rust: stable
       script: ./ci/test.sh
-      if: branch != master
-  allow_failures:      
-    - stage: test
-      rust: beta
+    - rust: beta
       script: ./ci/test.sh
-      if: branch != master
-    - stage: test
-      rust: nightly
-      script: ./ci/test.sh
-      if: branch != master
+    - rust: nightly
+      script: ./ci/test.sh 
 
     - stage: deploy
       services:
