@@ -9,6 +9,7 @@ jobs:
       rust: stable
       script: ./ci/test.sh
       if: branch != master
+  allow_failures:      
     - stage: test
       rust: beta
       script: ./ci/test.sh
