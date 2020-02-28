@@ -74,8 +74,6 @@ pub enum FeedType {
     Rss,
     Atom,
     PythonInsider,
-    TGIK,
-    JonHoo,
 }
 
 pub trait ReadFeed {
@@ -135,37 +133,6 @@ impl ReadFeed for Feed {
                         .collect();
                     Article {
                         url: ArticleUrl::from_str(&url),
-                        title: Title::from_str(entry.title()),
-                    }
-                })
-                .collect()),
-
-            FeedType::TGIK => Ok(read_atom(&self)?
-                .iter()
-                .filter(|entry| entry.title().starts_with("TGI Kubernetes "))
-                .map(|entry| {
-                    let url = if let Some(link) = entry.links().first() {
-                        ArticleUrl::from_str(link.href())
-                    } else {
-                        ArticleUrl::default()
-                    };
-                    Article {
-                        url,
-                        title: Title::from_str(entry.title()),
-                    }
-                })
-                .collect()),
-
-            FeedType::JonHoo => Ok(read_atom(&self)?
-                .iter()
-                .map(|entry| {
-                    let url = if let Some(link) = entry.links().first() {
-                        ArticleUrl::from_str(link.href())
-                    } else {
-                        ArticleUrl::default()
-                    };
-                    Article {
-                        url,
                         title: Title::from_str(entry.title()),
                     }
                 })
@@ -252,23 +219,11 @@ pub fn read_feeds() {
     let mut all_feeds = Vec::new();
     all_feeds.extend(rss_feeds);
     all_feeds.extend(atom_feeds);
-    all_feeds.extend(vec![
-        Feed::new(
-            "https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg",
-            FeedType::TGIK,
-            SlackChannel::BattleBots,
-        ),
-        Feed::new(
-            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ",
-            FeedType::JonHoo,
-            SlackChannel::BattleBots,
-        ),
-        Feed::new(
-            "http://feeds.feedburner.com/PythonInsider",
-            FeedType::PythonInsider,
-            SlackChannel::Python,
-        ),
-    ]);
+    all_feeds.extend(vec![Feed::new(
+        "http://feeds.feedburner.com/PythonInsider",
+        FeedType::PythonInsider,
+        SlackChannel::Python,
+    )]);
 
     // main loop
     loop {

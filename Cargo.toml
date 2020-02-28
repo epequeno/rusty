@@ -20,9 +20,11 @@ log = "0.4"
 linked_hash_set = "0.1"
 atom_syndication = "0.8"
 reqwest = "0.10"
-rusoto_core = "0.42"
+rusoto_core = "0.42" # 0.43 switches to Futures
 rusoto_dynamodb = "0.42"
 url = "2.1"
+uuid = { version ="0.8", features = ["v4"] }
+chrono = "0.4"
 
 [dependencies.rss]
 version = "1"

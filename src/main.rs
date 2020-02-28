@@ -35,10 +35,9 @@ impl EventHandler for Handler {
     fn on_event(&mut self, client: &RtmClient, event: Event) {
         info!("on_event(event: {:?})", event);
 
-        match event.clone() {
-            Event::Message(message) => self.handle_message(*message, client, &event),
-            _ => return,
-        };
+        if let Event::Message(message) = event.clone() {
+            self.handle_message(*message, client, &event)
+        }
     }
 
     fn on_close(&mut self, client: &RtmClient) {}
@@ -57,6 +56,7 @@ impl Handler {
         };
 
         let channel: String = message_standard.channel.unwrap();
+        let user: String = message_standard.user.unwrap();
         let bot_id: &str = client
             .start_response()
             .slf
@@ -68,7 +68,7 @@ impl Handler {
         let text: String = message_standard.text.unwrap();
         if text.starts_with("!add ") {
             info!("matched !add");
-            parse_add(&text, client)
+            parse_add(&text, &user)
         } else if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);
