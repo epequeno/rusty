@@ -2,10 +2,7 @@ language: rust
 dist: trusty
 cache: cargo
 script: skip
-matrix:
-  allow_failures:
-    - rust: nightly
-  fast_finish: true
+os: linux
 jobs:
   include:
     - stage: test
