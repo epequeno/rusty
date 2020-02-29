@@ -1,8 +1,10 @@
 mod library;
 mod reader;
 
+#[macro_use]
+extern crate prettytable;
 use env_logger;
-use library::parse_add;
+use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
 use slack::{Event, EventHandler, Message, RtmClient};
@@ -30,6 +32,26 @@ impl SlackChannel {
     }
 }
 
+fn bot_say(channel: SlackChannel, msg: &str) {
+    let api_client = slack_api::requests::default_client().unwrap();
+    let token: String = std::env::vars()
+        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
+        .map(|(_, v)| v)
+        .collect();
+    let chan_id = channel.id();
+    let bot_msg = format!("```{}```", msg);
+
+    let mut msg = slack_api::chat::PostMessageRequest::default();
+    msg.channel = &chan_id;
+    msg.text = &bot_msg;
+    msg.as_user = Some(true);
+
+    info!(
+        "{:?}",
+        slack_api::chat::post_message(&api_client, &token, &msg)
+    );
+}
+
 #[allow(unused_variables)]
 impl EventHandler for Handler {
     fn on_event(&mut self, client: &RtmClient, event: Event) {
@@ -43,7 +65,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        std::thread::spawn(read_feeds);
+        // std::thread::spawn(read_feeds);
     }
 }
 
@@ -65,10 +87,14 @@ impl Handler {
             .id
             .as_ref()
             .unwrap();
+
         let text: String = message_standard.text.unwrap();
-        if text.starts_with("!add ") {
-            info!("matched !add");
-            parse_add(&text, &user)
+        if text.starts_with("!put ") {
+            info!("matched !put");
+            parse_put(&text, &user)
+        } else if text.starts_with("!last") {
+            info!("matched !last");
+            last_five()
         } else if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);

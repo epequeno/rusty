@@ -1,9 +1,10 @@
 //! functions for use in #library
-use crate::SlackChannel;
+use crate::{bot_say, SlackChannel};
 use chrono::{DateTime, Utc};
 use log::{error, info};
+use prettytable::{Cell, Row, Table};
 use rusoto_core::Region;
-use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput};
+use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, ScanInput};
 use slack_api;
 use std::collections::HashMap;
 use url::Url;
@@ -52,13 +53,13 @@ fn put_url(url: &str, user: &str) {
     info!("{:?}", client.put_item(put_item_input).sync());
 }
 
-pub fn parse_add(text: &str, user: &str) {
+pub fn parse_put(text: &str, user: &str) {
     let parts: Vec<&str> = text.split(' ').collect();
     if parts.len() != 2 {
         error!("got {} parts, expected 2", parts.len());
         return;
     }
-    let api_client = slack_api::requests::default_client().unwrap();
+
     let input_string = parts[1];
     let url_string = parse_slack_url(input_string);
 
@@ -69,21 +70,34 @@ pub fn parse_add(text: &str, user: &str) {
         let msg = format!("unable to parse as url: {}", input_string);
         error!("{}", msg);
 
-        let token: String = std::env::vars()
-            .filter(|(k, _)| k == "SLACKBOT_TOKEN")
-            .map(|(_, v)| v)
-            .collect();
-        let chan_id = SlackChannel::BattleBots.id();
-        let bot_msg = format!("```{}```", msg);
-
-        let mut msg = slack_api::chat::PostMessageRequest::default();
-        msg.channel = &chan_id;
-        msg.text = &bot_msg;
-        msg.as_user = Some(true);
-
-        info!(
-            "{:?}",
-            slack_api::chat::post_message(&api_client, &token, &msg)
-        );
+        bot_say(SlackChannel::BattleBots, &msg)
     }
+}
+
+pub fn last_five() {
+    let client = DynamoDbClient::new(Region::UsEast1);
+    let mut scan_input = ScanInput::default();
+    scan_input.table_name = String::from("library");
+    scan_input.select = Some(String::from("ALL_ATTRIBUTES"));
+    scan_input.limit = Some(5);
+
+    let scan_output = client.scan(scan_input).sync().unwrap();
+    let items = scan_output.items.unwrap();
+
+    let mut table = Table::new();
+    table.add_row(row!["user", "url", "added_at"]);
+
+    for item in items.iter() {
+        let mut row: Vec<Cell> = Vec::new();
+
+        for key in vec!["user", "url", "added_at"].iter() {
+            let value = item.get(key.clone()).unwrap().s.as_ref().unwrap();
+            row.push(Cell::new(&value));
+        }
+
+        table.add_row(Row::new(row));
+    }
+
+    let msg = table.to_string();
+    bot_say(SlackChannel::BattleBots, &msg)
 }
