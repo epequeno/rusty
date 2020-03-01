@@ -18,6 +18,7 @@ pub enum SlackChannel {
     Kubernetes,
     Python,
     BattleBots,
+    Library,
 }
 
 impl SlackChannel {
@@ -28,6 +29,7 @@ impl SlackChannel {
             SlackChannel::Kubernetes => "C91DM9Y6S",
             SlackChannel::Python => "C6DTBQK4P",
             SlackChannel::BattleBots => "CD31RPEFR",
+            SlackChannel::Library => "CE2L5QUGP",
         }
     }
 }
@@ -65,7 +67,7 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        // std::thread::spawn(read_feeds);
+        std::thread::spawn(read_feeds);
     }
 }
 
@@ -89,13 +91,16 @@ impl Handler {
             .unwrap();
 
         let text: String = message_standard.text.unwrap();
-        if text.starts_with("!put ") {
-            info!("matched !put");
-            parse_put(&text, &user)
-        } else if text.starts_with("!last") {
-            info!("matched !last");
-            last_five()
-        } else if text.contains(bot_id) {
+        if channel == SlackChannel::Library.id() || channel == SlackChannel::BattleBots.id() {
+            if text.starts_with("!put ") {
+                info!("matched !put");
+                parse_put(&text, &user)
+            } else if text.starts_with("!last") {
+                info!("matched !last");
+                last_five()
+            }
+        }
+        if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);
         }

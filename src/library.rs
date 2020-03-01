@@ -2,13 +2,12 @@
 use crate::{bot_say, SlackChannel};
 use chrono::{DateTime, Utc};
 use log::{error, info};
-use prettytable::{Cell, Row, Table};
+use prettytable::{format, Cell, Row, Table};
 use rusoto_core::Region;
-use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, ScanInput};
-use slack_api;
+use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, QueryInput};
+use slack_api::users::InfoRequest;
 use std::collections::HashMap;
 use url::Url;
-use uuid::Uuid;
 
 fn parse_slack_url(url: &str) -> &str {
     info!("parser got url: {}", url);
@@ -32,17 +31,18 @@ fn put_url(url: &str, user: &str) {
     let mut url_value = AttributeValue::default();
     url_value.s = Some(url.to_string());
 
-    let mut id_value = AttributeValue::default();
-    id_value.s = Some(Uuid::new_v4().to_string());
+    let mut partition_key_value = AttributeValue::default();
+    partition_key_value.s = Some(String::from("records"));
 
     let utc: DateTime<Utc> = Utc::now();
     let mut added_at = AttributeValue::default();
-    added_at.s = Some(utc.to_rfc3339());
+    let timestamp = utc.to_rfc3339();
+    added_at.s = Some(timestamp);
 
     let mut user_val = AttributeValue::default();
     user_val.s = Some(user.to_string());
 
-    item.insert(String::from("id"), id_value);
+    item.insert(String::from("id"), partition_key_value);
     item.insert(String::from("url"), url_value);
     item.insert(String::from("added_at"), added_at);
     item.insert(String::from("user"), user_val);
@@ -74,25 +74,77 @@ pub fn parse_put(text: &str, user: &str) {
     }
 }
 
+fn get_user_info(user_id: &str) -> Option<String> {
+    let api_client = slack_api::requests::default_client().unwrap();
+    let token: String = std::env::vars()
+        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
+        .map(|(_, v)| v)
+        .collect();
+    let mut info_request = InfoRequest::default();
+    info_request.user = user_id;
+    if let Ok(res) = slack_api::users::info(&api_client, &token, &info_request) {
+        let user_real_name = res.user.unwrap().real_name.unwrap();
+        Some(user_real_name)
+    } else {
+        None
+    }
+}
+
 pub fn last_five() {
     let client = DynamoDbClient::new(Region::UsEast1);
-    let mut scan_input = ScanInput::default();
-    scan_input.table_name = String::from("library");
-    scan_input.select = Some(String::from("ALL_ATTRIBUTES"));
-    scan_input.limit = Some(5);
+    let mut query_input = QueryInput::default();
+    query_input.table_name = String::from("library");
+    query_input.select = Some(String::from("ALL_ATTRIBUTES"));
+    query_input.index_name = Some(String::from("id-added_at-index"));
+    query_input.limit = Some(5);
+    query_input.scan_index_forward = Some(false);
+    query_input.key_condition_expression =
+        Some(String::from("id = :partition AND added_at >= :t1"));
 
-    let scan_output = client.scan(scan_input).sync().unwrap();
-    let items = scan_output.items.unwrap();
+    let mut attr_values: HashMap<String, AttributeValue> = HashMap::new();
+
+    let mut attr_value = AttributeValue::default();
+    attr_value.s = Some(String::from("records"));
+    attr_values.insert(String::from(":partition"), attr_value);
+
+    let mut attr_value = AttributeValue::default();
+    attr_value.s = Some(String::from("2020"));
+    attr_values.insert(String::from(":t1"), attr_value);
+
+    query_input.expression_attribute_values = Some(attr_values);
+
+    let query_output = client.query(query_input).sync().unwrap();
+    info!("{:?}", query_output);
+    let items = query_output.items.unwrap();
+
+    if items.is_empty() {
+        let msg = String::from("no records found!");
+        bot_say(SlackChannel::BattleBots, &msg);
+        return;
+    }
 
     let mut table = Table::new();
-    table.add_row(row!["user", "url", "added_at"]);
+    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+    table.set_titles(row!["user", "added_at", "url"]);
 
     for item in items.iter() {
         let mut row: Vec<Cell> = Vec::new();
 
-        for key in vec!["user", "url", "added_at"].iter() {
-            let value = item.get(key.clone()).unwrap().s.as_ref().unwrap();
-            row.push(Cell::new(&value));
+        for key in vec!["user", "added_at", "url"].iter() {
+            let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
+            if key == &"user" {
+                let real_name = get_user_info(value).unwrap();
+                row.push(Cell::new(&real_name));
+            } else if key == &"added_at" {
+                let parts: Vec<&str> = value.split('.').collect();
+                let date_time = parts[0];
+                let parts: Vec<&str> = date_time.split('T').collect();
+                let (date, time) = (parts[0], parts[1]);
+                let date_time = format!("{} {} UTC", date, time);
+                row.push(Cell::new(&date_time));
+            } else {
+                row.push(Cell::new(&value));
+            }
         }
 
         table.add_row(Row::new(row));
