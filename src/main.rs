@@ -1,5 +1,6 @@
 mod library;
 mod reader;
+mod utils;
 
 #[macro_use]
 extern crate prettytable;
@@ -32,26 +33,6 @@ impl SlackChannel {
             SlackChannel::Library => "CE2L5QUGP",
         }
     }
-}
-
-fn bot_say(channel: SlackChannel, msg: &str) {
-    let api_client = slack_api::requests::default_client().unwrap();
-    let token: String = std::env::vars()
-        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
-        .map(|(_, v)| v)
-        .collect();
-    let chan_id = channel.id();
-    let bot_msg = format!("```{}```", msg);
-
-    let mut msg = slack_api::chat::PostMessageRequest::default();
-    msg.channel = &chan_id;
-    msg.text = &bot_msg;
-    msg.as_user = Some(true);
-
-    info!(
-        "{:?}",
-        slack_api::chat::post_message(&api_client, &token, &msg)
-    );
 }
 
 #[allow(unused_variables)]
@@ -91,7 +72,7 @@ impl Handler {
             .unwrap();
 
         let text: String = message_standard.text.unwrap();
-        if channel == SlackChannel::Library.id() || channel == SlackChannel::BattleBots.id() {
+        if channel == SlackChannel::Library.id() {
             if text.starts_with("!put ") {
                 info!("matched !put");
                 parse_put(&text, &user)
@@ -122,7 +103,7 @@ fn main() {
 
     // get bot token from environment variables
     let target_env_var = "SLACKBOT_TOKEN";
-    let mut api_key: String = "".to_string();
+    let mut api_key: String = String::new();
     for (k, v) in std::env::vars() {
         if k == target_env_var {
             api_key = v;

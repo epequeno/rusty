@@ -1,11 +1,11 @@
 //! functions for use in #library
-use crate::{bot_say, SlackChannel};
+use crate::utils::{bot_say, get_user_real_name};
+use crate::SlackChannel;
 use chrono::{DateTime, Utc};
-use log::{error, info};
+use log::{debug, error, info};
 use prettytable::{format, Cell, Row, Table};
 use rusoto_core::Region;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, QueryInput};
-use slack_api::users::InfoRequest;
 use std::collections::HashMap;
 use url::Url;
 
@@ -16,15 +16,24 @@ fn parse_slack_url(url: &str) -> &str {
     }
 
     if url.contains('|') {
-        let url_string: Vec<&str> = url.split('|').collect();
-        &url_string[0][1..]
+        // when slack gets a bare url like example.com it attempts to present it as a full link
+        // in the UI and modifies it to slacks syntax for a link. for example:
+        // example.com becomes <http://example.com|example.com>
+        let url_string_parts: Vec<&str> = url.split('|').collect();
+        let url_string = url_string_parts[0];
+
+        // ignore the leading angle bracket
+        &url_string[1..]
     } else {
-        // get rid of surrounding brackets
+        // a url sent to slack as http://example.com will look like <http://example.com> by the time
+        // the bot sees it. We'll keep everything except the leading and trailing angle brackets.
         &url[1..url.len() - 1]
     }
 }
 
+// put a record of who put which url into a DB.
 fn put_url(url: &str, user: &str) {
+    info!("got request to put record for user: {}, url: {}", user, url);
     let client = DynamoDbClient::new(Region::UsEast1);
 
     let mut item: HashMap<String, AttributeValue> = HashMap::new();
@@ -42,7 +51,7 @@ fn put_url(url: &str, user: &str) {
     let mut user_val = AttributeValue::default();
     user_val.s = Some(user.to_string());
 
-    item.insert(String::from("id"), partition_key_value);
+    item.insert(String::from("partition_key"), partition_key_value);
     item.insert(String::from("url"), url_value);
     item.insert(String::from("added_at"), added_at);
     item.insert(String::from("user"), user_val);
@@ -50,13 +59,17 @@ fn put_url(url: &str, user: &str) {
     let mut put_item_input = PutItemInput::default();
     put_item_input.table_name = String::from("library");
     put_item_input.item = item;
-    info!("{:?}", client.put_item(put_item_input).sync());
+    debug!("{:?}", client.put_item(put_item_input).sync());
 }
 
+// take the string we get from slack and parse it so we can do actual work with it
 pub fn parse_put(text: &str, user: &str) {
+    // expected input is like: !put <url>
     let parts: Vec<&str> = text.split(' ').collect();
     if parts.len() != 2 {
-        error!("got {} parts, expected 2", parts.len());
+        let msg = format!("got {} parts, expected 2", parts.len());
+        error!("{}", msg);
+        bot_say(SlackChannel::Library, &msg);
         return;
     }
 
@@ -64,39 +77,27 @@ pub fn parse_put(text: &str, user: &str) {
     let url_string = parse_slack_url(input_string);
 
     if let Ok(parsed_url) = Url::parse(&url_string) {
-        info!("success parsing as url: {}", parsed_url);
+        info!("success! parsed {} as url: {}", url_string, parsed_url);
         put_url(&parsed_url.as_str(), user);
     } else {
         let msg = format!("unable to parse as url: {}", input_string);
         error!("{}", msg);
 
-        bot_say(SlackChannel::BattleBots, &msg)
+        bot_say(SlackChannel::Library, &msg)
     }
 }
 
-fn get_user_info(user_id: &str) -> Option<String> {
-    let api_client = slack_api::requests::default_client().unwrap();
-    let token: String = std::env::vars()
-        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
-        .map(|(_, v)| v)
-        .collect();
-    let mut info_request = InfoRequest::default();
-    info_request.user = user_id;
-    if let Ok(res) = slack_api::users::info(&api_client, &token, &info_request) {
-        let user_real_name = res.user.unwrap().real_name.unwrap();
-        Some(user_real_name)
-    } else {
-        None
-    }
-}
-
+// get the five most recent entries from the DB
 pub fn last_five() {
     let client = DynamoDbClient::new(Region::UsEast1);
+
+    // define the query
     let mut query_input = QueryInput::default();
     query_input.table_name = String::from("library");
     query_input.select = Some(String::from("ALL_ATTRIBUTES"));
     query_input.index_name = Some(String::from("id-added_at-index"));
     query_input.limit = Some(5);
+    // sort in reverse order, where newest are listed first
     query_input.scan_index_forward = Some(false);
     query_input.key_condition_expression =
         Some(String::from("id = :partition AND added_at >= :t1"));
@@ -107,6 +108,8 @@ pub fn last_five() {
     attr_value.s = Some(String::from("records"));
     attr_values.insert(String::from(":partition"), attr_value);
 
+    // TODO: change to a dynamic time range, so maybe only look at records in the last 6mo? Really
+    // depends on the frequency of use which is currently unknown.
     let mut attr_value = AttributeValue::default();
     attr_value.s = Some(String::from("2020"));
     attr_values.insert(String::from(":t1"), attr_value);
@@ -114,28 +117,30 @@ pub fn last_five() {
     query_input.expression_attribute_values = Some(attr_values);
 
     let query_output = client.query(query_input).sync().unwrap();
-    info!("{:?}", query_output);
+    debug!("{:?}", query_output);
     let items = query_output.items.unwrap();
 
     if items.is_empty() {
         let msg = String::from("no records found!");
-        bot_say(SlackChannel::BattleBots, &msg);
+        bot_say(SlackChannel::Library, &msg);
         return;
     }
 
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    table.set_titles(row!["user", "added_at", "url"]);
+    table.set_titles(row!["user", "added at", "url"]);
 
     for item in items.iter() {
         let mut row: Vec<Cell> = Vec::new();
 
         for key in vec!["user", "added_at", "url"].iter() {
             let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
+
             if key == &"user" {
-                let real_name = get_user_info(value).unwrap();
+                let real_name = get_user_real_name(value).unwrap();
                 row.push(Cell::new(&real_name));
             } else if key == &"added_at" {
+                // stored in db as: 2020-02-29T03:22:22.728369605+00:00
                 let parts: Vec<&str> = value.split('.').collect();
                 let date_time = parts[0];
                 let parts: Vec<&str> = date_time.split('T').collect();
@@ -151,5 +156,5 @@ pub fn last_five() {
     }
 
     let msg = table.to_string();
-    bot_say(SlackChannel::BattleBots, &msg)
+    bot_say(SlackChannel::Library, &msg)
 }
