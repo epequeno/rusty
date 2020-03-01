@@ -1,8 +1,14 @@
-use slack::{Event, EventHandler, Message, RtmClient};
+mod library;
 mod reader;
+mod utils;
+
+#[macro_use]
+extern crate prettytable;
 use env_logger;
+use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
+use slack::{Event, EventHandler, Message, RtmClient};
 
 struct Handler;
 
@@ -13,6 +19,7 @@ pub enum SlackChannel {
     Kubernetes,
     Python,
     BattleBots,
+    Library,
 }
 
 impl SlackChannel {
@@ -23,6 +30,7 @@ impl SlackChannel {
             SlackChannel::Kubernetes => "C91DM9Y6S",
             SlackChannel::Python => "C6DTBQK4P",
             SlackChannel::BattleBots => "CD31RPEFR",
+            SlackChannel::Library => "CE2L5QUGP",
         }
     }
 }
@@ -32,10 +40,9 @@ impl EventHandler for Handler {
     fn on_event(&mut self, client: &RtmClient, event: Event) {
         info!("on_event(event: {:?})", event);
 
-        match event.clone() {
-            Event::Message(message) => self.handle_message(*message, client, &event),
-            _ => return,
-        };
+        if let Event::Message(message) = event.clone() {
+            self.handle_message(*message, client, &event)
+        }
     }
 
     fn on_close(&mut self, client: &RtmClient) {}
@@ -54,6 +61,7 @@ impl Handler {
         };
 
         let channel: String = message_standard.channel.unwrap();
+        let user: String = message_standard.user.unwrap();
         let bot_id: &str = client
             .start_response()
             .slf
@@ -62,7 +70,17 @@ impl Handler {
             .id
             .as_ref()
             .unwrap();
+
         let text: String = message_standard.text.unwrap();
+        if channel == SlackChannel::Library.id() {
+            if text.starts_with("!put ") {
+                info!("matched !put");
+                parse_put(&text, &user)
+            } else if text.starts_with("!last") {
+                info!("matched !last");
+                last_five()
+            }
+        }
         if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);
@@ -85,7 +103,7 @@ fn main() {
 
     // get bot token from environment variables
     let target_env_var = "SLACKBOT_TOKEN";
-    let mut api_key: String = "".to_string();
+    let mut api_key: String = String::new();
     for (k, v) in std::env::vars() {
         if k == target_env_var {
             api_key = v;

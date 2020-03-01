@@ -74,8 +74,6 @@ pub enum FeedType {
     Rss,
     Atom,
     PythonInsider,
-    TGIK,
-    JonHoo,
 }
 
 pub trait ReadFeed {
@@ -90,8 +88,10 @@ fn read_rss(feed: &Feed) -> Result<Vec<Item>, rss::Error> {
 
 fn get_atom_feed(url: &str) -> Result<String, reqwest::Error> {
     let timeout = Duration::from_secs(3);
-    let client = reqwest::Client::builder().timeout(timeout).build()?;
-    let mut res = client.get(url).send()?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(timeout)
+        .build()?;
+    let res = client.get(url).send()?;
     Ok(res.text()?)
 }
 
@@ -133,37 +133,6 @@ impl ReadFeed for Feed {
                         .collect();
                     Article {
                         url: ArticleUrl::from_str(&url),
-                        title: Title::from_str(entry.title()),
-                    }
-                })
-                .collect()),
-
-            FeedType::TGIK => Ok(read_atom(&self)?
-                .iter()
-                .filter(|entry| entry.title().starts_with("TGI Kubernetes "))
-                .map(|entry| {
-                    let url = if let Some(link) = entry.links().first() {
-                        ArticleUrl::from_str(link.href())
-                    } else {
-                        ArticleUrl::default()
-                    };
-                    Article {
-                        url,
-                        title: Title::from_str(entry.title()),
-                    }
-                })
-                .collect()),
-
-            FeedType::JonHoo => Ok(read_atom(&self)?
-                .iter()
-                .map(|entry| {
-                    let url = if let Some(link) = entry.links().first() {
-                        ArticleUrl::from_str(link.href())
-                    } else {
-                        ArticleUrl::default()
-                    };
-                    Article {
-                        url,
                         title: Title::from_str(entry.title()),
                     }
                 })
@@ -240,10 +209,7 @@ pub fn read_feeds() {
         .map(|(url, chan)| Feed::new(url, FeedType::Rss, chan.clone()))
         .collect();
 
-    let atom_feeds = vec![(
-        "https://blog.rust-lang.org/feed.xml",
-        SlackChannel::Rust,
-    )];
+    let atom_feeds = vec![("https://blog.rust-lang.org/feed.xml", SlackChannel::Rust)];
 
     let atom_feeds: Vec<Feed> = atom_feeds
         .iter()
@@ -253,23 +219,11 @@ pub fn read_feeds() {
     let mut all_feeds = Vec::new();
     all_feeds.extend(rss_feeds);
     all_feeds.extend(atom_feeds);
-    all_feeds.extend(vec![
-        Feed::new(
-            "https://www.youtube.com/feeds/videos.xml?channel_id=UCjQU5ZI2mHswy7OOsii_URg",
-            FeedType::TGIK,
-            SlackChannel::BattleBots,
-        ),
-        Feed::new(
-            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ",
-            FeedType::JonHoo,
-            SlackChannel::BattleBots,
-        ),
-        Feed::new(
-            "http://feeds.feedburner.com/PythonInsider",
-            FeedType::PythonInsider,
-            SlackChannel::Python,
-        ),
-    ]);
+    all_feeds.extend(vec![Feed::new(
+        "http://feeds.feedburner.com/PythonInsider",
+        FeedType::PythonInsider,
+        SlackChannel::Python,
+    )]);
 
     // main loop
     loop {
@@ -318,7 +272,7 @@ pub fn read_feeds() {
                             feed.previous_titles.insert(title.to_string());
 
                             let text = format!("<{}|{}>", article.url, article.title);
-                            info!("sending channel {}: {}", &chan_id, &text);;
+                            info!("sending channel {}: {}", &chan_id, &text);
                             let mut msg = slack_api::chat::PostMessageRequest::default();
                             msg.channel = &chan_id;
                             msg.text = &text;

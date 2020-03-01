@@ -2,24 +2,20 @@ language: rust
 dist: trusty
 cache: cargo
 script: skip
-matrix:
-  allow_failures:
-    - rust: nightly
-  fast_finish: true
+os: linux
 jobs:
+  allow_failures:
+    - rust: beta
+    - rust: nightly
+    - if: branch != master
   include:
     - stage: test
       rust: stable
       script: ./ci/test.sh
-      if: branch != master
-    - stage: test
-      rust: beta
+    - rust: beta
       script: ./ci/test.sh
-      if: branch != master
-    - stage: test
-      rust: nightly
-      script: ./ci/test.sh
-      if: branch != master
+    - rust: nightly
+      script: ./ci/test.sh 
 
     - stage: deploy
       services:

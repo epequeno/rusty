@@ -1,6 +1,6 @@
 [package]
 name = "rusty-slackbot"
-version = "0.12.3"
+version = "0.13.0"
 authors = ["Steven Pequeno <steven@pequeno.in>"]
 description = "a slack bot for sanantoniodevs.slack.com"
 license = "GPL-3.0-or-later"
@@ -12,14 +12,20 @@ edition = "2018"
 
 [dependencies]
 failure = "0.1"
-slack = "0.22"
-slack_api = "0.21"
+slack = "0.23"
+slack_api = "0.22"
 openssl-probe = "0.1"
-env_logger = "0.6"
+env_logger = "0.7"
 log = "0.4"
 linked_hash_set = "0.1"
-atom_syndication = "0.6"
-reqwest = "0.9"
+atom_syndication = "0.8"
+reqwest = "0.10"
+rusoto_core = "0.42" # 0.43 switches to Futures
+rusoto_dynamodb = "0.42"
+url = "2.1"
+uuid = { version ="0.8", features = ["v4"] }
+chrono = "0.4"
+prettytable-rs = "0.8"
 
 [dependencies.rss]
 version = "1"
