@@ -95,12 +95,12 @@ pub fn last_five() {
     let mut query_input = QueryInput::default();
     query_input.table_name = String::from("library");
     query_input.select = Some(String::from("ALL_ATTRIBUTES"));
-    query_input.index_name = Some(String::from("id-added_at-index"));
+    query_input.index_name = Some(String::from("partition_key-added_at-index"));
     query_input.limit = Some(5);
     // sort in reverse order, where newest are listed first
     query_input.scan_index_forward = Some(false);
     query_input.key_condition_expression =
-        Some(String::from("id = :partition AND added_at >= :t1"));
+        Some(String::from("partition_key = :partition AND added_at >= :t1"));
 
     let mut attr_values: HashMap<String, AttributeValue> = HashMap::new();
 
