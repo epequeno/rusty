@@ -73,6 +73,8 @@ impl Handler {
 
         let text: String = message_standard.text.unwrap();
         if channel == SlackChannel::Library.id() {
+            info!("recognized message from #library");
+
             if text.starts_with("!put ") {
                 info!("matched !put");
                 parse_put(&text, &user)
@@ -81,6 +83,7 @@ impl Handler {
                 last_five()
             }
         }
+
         if text.contains(bot_id) {
             info!("is a mention");
             respond_hi(&bot_id, &text, &channel, &client);
