@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/epequeno/rusty/workflows/Rust/badge.svg)](https://travis-ci.org/epequeno/rusty)
+[![Build Status](https://github.com/epequeno/rusty/workflows/Rust/badge.svg)](https://github.com/epequeno/rusty/actions)
 
 A slackbot for [sanantoniodevs.slack.com](https://sanantoniodevs.slack.com).
 
