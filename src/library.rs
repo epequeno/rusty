@@ -1,6 +1,7 @@
 //! functions for use in #library
 use crate::utils::{bot_say, get_user_real_name};
 use crate::SlackChannel;
+use chrono::offset::TimeZone;
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
 use prettytable::{format, Cell, Row, Table};
@@ -44,16 +45,16 @@ fn put_url(url: &str, user: &str) {
     partition_key_value.s = Some(String::from("records"));
 
     let utc: DateTime<Utc> = Utc::now();
-    let mut added_at = AttributeValue::default();
-    let timestamp = utc.to_rfc3339();
-    added_at.s = Some(timestamp);
+    let mut timestamp_attr_value = AttributeValue::default();
+    let timestamp = utc.timestamp().to_string();
+    timestamp_attr_value.s = Some(timestamp);
 
     let mut user_val = AttributeValue::default();
     user_val.s = Some(user.to_string());
 
     item.insert(String::from("partition_key"), partition_key_value);
     item.insert(String::from("url"), url_value);
-    item.insert(String::from("added_at"), added_at);
+    item.insert(String::from("timestamp"), timestamp_attr_value);
     item.insert(String::from("user"), user_val);
 
     let mut put_item_input = PutItemInput::default();
@@ -95,14 +96,18 @@ pub fn last_five() {
     let mut query_input = QueryInput::default();
     query_input.table_name = String::from("library");
     query_input.select = Some(String::from("ALL_ATTRIBUTES"));
-    query_input.index_name = Some(String::from("partition_key-added_at-index"));
+    query_input.index_name = Some(String::from("partition_key-timestamp-index"));
     query_input.limit = Some(5);
     // sort in reverse order, where newest are listed first
     query_input.scan_index_forward = Some(false);
-    query_input.key_condition_expression =
-        Some(String::from("partition_key = :partition AND added_at >= :t1"));
+    query_input.key_condition_expression = Some(String::from(
+        "partition_key = :partition AND #timestamp >= :t1",
+    ));
 
     let mut attr_values: HashMap<String, AttributeValue> = HashMap::new();
+
+    let mut attr_names: HashMap<String, String> = HashMap::new();
+    attr_names.insert(String::from("#timestamp"), String::from("timestamp"));
 
     let mut attr_value = AttributeValue::default();
     attr_value.s = Some(String::from("records"));
@@ -111,9 +116,10 @@ pub fn last_five() {
     // TODO: change to a dynamic time range, so maybe only look at records in the last 6mo? Really
     // depends on the frequency of use which is currently unknown.
     let mut attr_value = AttributeValue::default();
-    attr_value.s = Some(String::from("2020"));
+    attr_value.s = Some(String::from("1577836800"));
     attr_values.insert(String::from(":t1"), attr_value);
 
+    query_input.expression_attribute_names = Some(attr_names);
     query_input.expression_attribute_values = Some(attr_values);
 
     let query_output = client.query(query_input).sync().unwrap();
@@ -128,25 +134,21 @@ pub fn last_five() {
 
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    table.set_titles(row!["user", "added at", "url"]);
+    table.set_titles(row!["user", "timestamp", "url"]);
 
     for item in items.iter() {
         let mut row: Vec<Cell> = Vec::new();
 
-        for key in vec!["user", "added_at", "url"].iter() {
+        for key in vec!["user", "timestamp", "url"].iter() {
             let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
 
             if key == &"user" {
                 let real_name = get_user_real_name(value).unwrap();
                 row.push(Cell::new(&real_name));
-            } else if key == &"added_at" {
-                // stored in db as: 2020-02-29T03:22:22.728369605+00:00
-                let parts: Vec<&str> = value.split('.').collect();
-                let date_time = parts[0];
-                let parts: Vec<&str> = date_time.split('T').collect();
-                let (date, time) = (parts[0], parts[1]);
-                let date_time = format!("{} {} UTC", date, time);
-                row.push(Cell::new(&date_time));
+            } else if key == &"timestamp" {
+                let timestamp_int = value.parse::<i64>().unwrap();
+                let dt = format!("{}", Utc.timestamp(timestamp_int, 0));
+                row.push(Cell::new(&dt));
             } else {
                 row.push(Cell::new(&value));
             }

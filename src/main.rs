@@ -8,7 +8,6 @@ use env_logger;
 use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
-use serde_json::Value;
 use slack::{Event, EventHandler, Message, RtmClient};
 struct Handler;
 
@@ -104,28 +103,10 @@ fn main() {
     // https://github.com/emk/rust-musl-builder#making-openssl-work
     openssl_probe::init_ssl_cert_env_vars();
 
-    // get bot token from environment variables
-    let target_env_var = "SLACKBOT_TOKEN_SECRET";
-    let mut api_key_json: String = String::new();
-    for (k, v) in std::env::vars() {
-        if k == target_env_var {
-            api_key_json = v;
-        }
-    }
-
-    if api_key_json.is_empty() {
-        eprintln!(
-            "no {} environment variable found!\nPlease set this env var and try again.",
-            target_env_var
-        );
-        std::process::exit(1);
-    }
-
-    let slackbot_token_json: Value = serde_json::from_str(&api_key_json).unwrap();
-    let slackbot_token = slackbot_token_json["SLACKBOT_TOKEN"].as_str();
+    let token = utils::get_slack_token_from_env_var();
 
     let mut handler = Handler;
-    let r = RtmClient::login_and_run(slackbot_token.unwrap(), &mut handler);
+    let r = RtmClient::login_and_run(&token, &mut handler);
     match r {
         Ok(_) => {}
         Err(err) => panic!("Error: {}", err),
