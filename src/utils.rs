@@ -1,13 +1,29 @@
 //! utility functions that don't belong anywhere else
 use crate::SlackChannel;
 use log::info;
+use serde_json::Value;
 use slack_api::users::InfoRequest;
 
-fn get_slack_token_from_env_var() -> String {
-    std::env::vars()
-        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
-        .map(|(_, v)| v)
-        .collect()
+pub fn get_slack_token_from_env_var() -> String {
+    // get bot token from environment variables
+    let target_env_var = "SLACKBOT_TOKEN_SECRET";
+    let mut api_key_json: String = String::new();
+    for (k, v) in std::env::vars() {
+        if k == target_env_var {
+            api_key_json = v;
+        }
+    }
+
+    if api_key_json.is_empty() {
+        eprintln!(
+            "no {} environment variable found!\nPlease set this env var and try again.",
+            target_env_var
+        );
+        std::process::exit(1);
+    }
+
+    let slackbot_token_json: Value = serde_json::from_str(&api_key_json).unwrap();
+    String::from(slackbot_token_json["SLACKBOT_TOKEN"].as_str().unwrap())
 }
 
 pub fn bot_say(channel: SlackChannel, msg: &str) {
