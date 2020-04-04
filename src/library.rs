@@ -1,5 +1,5 @@
 //! functions for use in #library
-use crate::utils::{bot_say, get_user_real_name};
+use crate::utils::{add_reaction, bot_say, get_user_real_name};
 use crate::SlackChannel;
 use chrono::offset::TimeZone;
 use chrono::{DateTime, Utc};
@@ -7,6 +7,8 @@ use log::{debug, error, info};
 use prettytable::{format, Cell, Row, Table};
 use rusoto_core::Region;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, QueryInput};
+use slack_api::reactions::AddRequest;
+use slack_api::MessageStandard;
 use std::collections::HashMap;
 use url::Url;
 
@@ -33,7 +35,11 @@ fn parse_slack_url(url: &str) -> &str {
 }
 
 // put a record of who put which url into a DB.
-fn put_url(url: &str, user: &str) {
+fn put_url(
+    url: &str,
+    user: &str,
+) -> Result<rusoto_dynamodb::PutItemOutput, rusoto_core::RusotoError<rusoto_dynamodb::PutItemError>>
+{
     info!("got request to put record for user: {}, url: {}", user, url);
     let client = DynamoDbClient::new(Region::UsEast1);
 
@@ -52,20 +58,35 @@ fn put_url(url: &str, user: &str) {
     let mut user_val = AttributeValue::default();
     user_val.s = Some(user.to_string());
 
+    let mut user_real_name_val = AttributeValue::default();
+    if let Some(name) = get_user_real_name(user) {
+        user_real_name_val.s = Some(name);
+    } else {
+        user_real_name_val.s = Some(String::new());
+    }
+
     item.insert(String::from("partition_key"), partition_key_value);
     item.insert(String::from("url"), url_value);
     item.insert(String::from("timestamp"), timestamp_attr_value);
     item.insert(String::from("user"), user_val);
+    item.insert(String::from("real_name"), user_real_name_val);
 
     let mut put_item_input = PutItemInput::default();
     put_item_input.table_name = String::from("library");
     put_item_input.item = item;
-    debug!("{:?}", client.put_item(put_item_input).sync());
+    let res = client.put_item(put_item_input).sync();
+    debug!("{:?}", res);
+    res
 }
 
 // take the string we get from slack and parse it so we can do actual work with it
-pub fn parse_put(text: &str, user: &str) {
+pub fn parse_put(message: MessageStandard) {
     // expected input is like: !put <url>
+    let timestamp: String = message.ts.unwrap();
+    let text: String = message.text.unwrap();
+    let user: String = message.user.unwrap();
+    let channel: String = message.channel.unwrap();
+
     let parts: Vec<&str> = text.split(' ').collect();
     if parts.len() != 2 {
         let msg = format!("got {} parts, expected 2", parts.len());
@@ -79,7 +100,20 @@ pub fn parse_put(text: &str, user: &str) {
 
     if let Ok(parsed_url) = Url::parse(&url_string) {
         info!("success! parsed {} as url: {}", url_string, parsed_url);
-        put_url(&parsed_url.as_str(), user);
+        let mut add_request = AddRequest::default();
+        add_request.channel = Some(&channel);
+        add_request.timestamp = Some(&timestamp);
+
+        match put_url(&parsed_url.as_str(), &user) {
+            Ok(_) => {
+                add_request.name = "heavy_check_mark";
+                add_reaction(add_request)
+            }
+            Err(_) => {
+                add_request.name = "x";
+                add_reaction(add_request)
+            }
+        }
     } else {
         let msg = format!("unable to parse as url: {}", input_string);
         error!("{}", msg);
@@ -89,7 +123,7 @@ pub fn parse_put(text: &str, user: &str) {
 }
 
 // get the five most recent entries from the DB
-pub fn last_five() {
+pub fn last_five(slack_channel: SlackChannel) {
     let client = DynamoDbClient::new(Region::UsEast1);
 
     // define the query
@@ -128,7 +162,7 @@ pub fn last_five() {
 
     if items.is_empty() {
         let msg = String::from("no records found!");
-        bot_say(SlackChannel::Library, &msg);
+        bot_say(slack_channel, &msg);
         return;
     }
 
@@ -139,13 +173,9 @@ pub fn last_five() {
     for item in items.iter() {
         let mut row: Vec<Cell> = Vec::new();
 
-        for key in vec!["user", "timestamp", "url"].iter() {
+        for key in vec!["real_name", "timestamp", "url"].iter() {
             let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
-
-            if key == &"user" {
-                let real_name = get_user_real_name(value).unwrap();
-                row.push(Cell::new(&real_name));
-            } else if key == &"timestamp" {
+            if key == &"timestamp" {
                 let timestamp_int = value.parse::<i64>().unwrap();
                 let dt = format!("{}", Utc.timestamp(timestamp_int, 0));
                 row.push(Cell::new(&dt));
@@ -158,5 +188,5 @@ pub fn last_five() {
     }
 
     let msg = table.to_string();
-    bot_say(SlackChannel::Library, &msg)
+    bot_say(slack_channel, &msg)
 }

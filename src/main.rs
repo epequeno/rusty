@@ -59,8 +59,8 @@ impl Handler {
             _ => return,
         };
 
-        let channel: String = message_standard.channel.unwrap();
-        let user: String = message_standard.user.unwrap();
+        let channel: String = message_standard.channel.clone().unwrap();
+        let user: String = message_standard.user.clone().unwrap();
         let bot_id: &str = client
             .start_response()
             .slf
@@ -70,16 +70,17 @@ impl Handler {
             .as_ref()
             .unwrap();
 
-        let text: String = message_standard.text.unwrap();
+        let text: String = message_standard.text.clone().unwrap();
+
         if channel == SlackChannel::Library.id() {
             info!("recognized message from #library");
 
             if text.starts_with("!put ") {
                 info!("matched !put");
-                parse_put(&text, &user)
+                parse_put(message_standard)
             } else if text.starts_with("!last") {
                 info!("matched !last");
-                last_five()
+                last_five(SlackChannel::Library)
             }
         }
 

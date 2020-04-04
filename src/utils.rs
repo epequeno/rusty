@@ -1,7 +1,8 @@
 //! utility functions that don't belong anywhere else
 use crate::SlackChannel;
-use log::info;
+use log::{debug, info};
 use serde_json::Value;
+use slack_api::reactions::AddRequest;
 use slack_api::users::InfoRequest;
 
 pub fn get_slack_token_from_env_var() -> String {
@@ -41,6 +42,14 @@ pub fn bot_say(channel: SlackChannel, msg: &str) {
         "{:?}",
         slack_api::chat::post_message(&api_client, &token, &msg)
     );
+}
+
+pub fn add_reaction(request: AddRequest) {
+    info!("adding reaction");
+    let api_client = slack_api::requests::default_client().unwrap();
+    let token = get_slack_token_from_env_var();
+    let res = slack_api::reactions::add(&api_client, &token, &request);
+    debug!("{:?}", res);
 }
 
 // get user_real_name
