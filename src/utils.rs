@@ -1,9 +1,10 @@
 //! utility functions that don't belong anywhere else
 use crate::SlackChannel;
 use log::{debug, info};
+use reqwest::blocking::Client;
 use serde_json::Value;
 use slack_api::reactions::AddRequest;
-use slack_api::users::InfoRequest;
+use slack_api::users::{InfoRequest, InfoResponse};
 
 pub fn get_slack_token_from_env_var() -> String {
     // get bot token from environment variables
@@ -27,9 +28,14 @@ pub fn get_slack_token_from_env_var() -> String {
     String::from(slackbot_token_json["SLACKBOT_TOKEN"].as_str().unwrap())
 }
 
+fn make_client() -> Client {
+    slack_api::requests::default_client().unwrap()
+}
+
 pub fn bot_say(channel: SlackChannel, msg: &str) {
-    let api_client = slack_api::requests::default_client().unwrap();
+    let api_client = make_client();
     let token = get_slack_token_from_env_var();
+
     let chan_id = channel.id();
     let bot_msg = format!("```{}```", msg);
 
@@ -46,20 +52,35 @@ pub fn bot_say(channel: SlackChannel, msg: &str) {
 
 pub fn add_reaction(request: AddRequest) {
     info!("adding reaction");
-    let api_client = slack_api::requests::default_client().unwrap();
+    let api_client = make_client();
     let token = get_slack_token_from_env_var();
     let res = slack_api::reactions::add(&api_client, &token, &request);
     debug!("{:?}", res);
 }
 
-// get user_real_name
-pub fn get_user_real_name(user_id: &str) -> Option<String> {
-    let api_client = slack_api::requests::default_client().unwrap();
+pub fn get_user_info(user_id: &str) -> Option<InfoResponse> {
+    let api_client = make_client();
     let token = get_slack_token_from_env_var();
     let mut info_request = InfoRequest::default();
     info_request.user = user_id;
-    if let Ok(res) = slack_api::users::info(&api_client, &token, &info_request) {
-        let user_real_name = res.user.unwrap().real_name.unwrap();
+    if let Ok(user_info) = slack_api::users::info(&api_client, &token, &info_request) {
+        Some(user_info)
+    } else {
+        None
+    }
+}
+
+pub fn get_user_handle(user_id: &str) -> Option<String> {
+    if let Some(info) = get_user_info(user_id) {
+        info.user.unwrap().name
+    } else {
+        None
+    }
+}
+
+pub fn get_user_real_name(user_id: &str) -> Option<String> {
+    if let Some(info) = get_user_info(user_id) {
+        let user_real_name = info.user.unwrap().real_name.unwrap();
         Some(user_real_name)
     } else {
         None
