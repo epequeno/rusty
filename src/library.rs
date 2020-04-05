@@ -1,5 +1,5 @@
 //! functions for use in #library
-use crate::utils::{add_reaction, bot_say, get_user_real_name};
+use crate::utils::{add_reaction, bot_say, get_user_handle, get_user_real_name};
 use crate::SlackChannel;
 use chrono::offset::TimeZone;
 use chrono::{DateTime, Utc};
@@ -65,11 +65,19 @@ fn put_url(
         user_real_name_val.s = Some(String::new());
     }
 
+    let mut user_handle = AttributeValue::default();
+    if let Some(handle) = get_user_handle(user) {
+        user_handle.s = Some(handle);
+    } else {
+        user_handle.s = Some(String::new());
+    }
+
     item.insert(String::from("partition_key"), partition_key_value);
     item.insert(String::from("url"), url_value);
     item.insert(String::from("timestamp"), timestamp_attr_value);
     item.insert(String::from("user"), user_val);
     item.insert(String::from("real_name"), user_real_name_val);
+    item.insert(String::from("handle"), user_handle);
 
     let mut put_item_input = PutItemInput::default();
     put_item_input.table_name = String::from("library");
@@ -123,7 +131,7 @@ pub fn parse_put(message: MessageStandard) {
 }
 
 // get the five most recent entries from the DB
-pub fn last_five(slack_channel: SlackChannel) {
+pub fn last_five(message: MessageStandard) {
     let client = DynamoDbClient::new(Region::UsEast1);
 
     // define the query
@@ -160,33 +168,35 @@ pub fn last_five(slack_channel: SlackChannel) {
     debug!("{:?}", query_output);
     let items = query_output.items.unwrap();
 
-    if items.is_empty() {
-        let msg = String::from("no records found!");
-        bot_say(slack_channel, &msg);
-        return;
-    }
+    let channel: String = message.channel.unwrap();
 
-    let mut table = Table::new();
-    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    table.set_titles(row!["user", "timestamp", "url"]);
-
-    for item in items.iter() {
-        let mut row: Vec<Cell> = Vec::new();
-
-        for key in vec!["real_name", "timestamp", "url"].iter() {
-            let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
-            if key == &"timestamp" {
-                let timestamp_int = value.parse::<i64>().unwrap();
-                let dt = format!("{}", Utc.timestamp(timestamp_int, 0));
-                row.push(Cell::new(&dt));
-            } else {
-                row.push(Cell::new(&value));
+    for chan in &[SlackChannel::BattleBots, SlackChannel::Library] {
+        if channel == chan.id() {
+            if items.is_empty() {
+                let msg = String::from("no records found!");
+                bot_say(chan.clone(), &msg);
+                return;
             }
+
+            let mut table = Table::new();
+            table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+            table.set_titles(row!["user", "timestamp", "url"]);
+            for item in items.iter() {
+                let mut row: Vec<Cell> = Vec::new();
+                for key in vec!["real_name", "timestamp", "url"].iter() {
+                    let value = item.get(&(*key).to_string()).unwrap().s.as_ref().unwrap();
+                    if key == &"timestamp" {
+                        let timestamp_int = value.parse::<i64>().unwrap();
+                        let dt = format!("{}", Utc.timestamp(timestamp_int, 0));
+                        row.push(Cell::new(&dt));
+                    } else {
+                        row.push(Cell::new(&value));
+                    }
+                }
+                table.add_row(Row::new(row));
+            }
+            let msg = table.to_string();
+            bot_say(chan.clone(), &msg)
         }
-
-        table.add_row(Row::new(row));
     }
-
-    let msg = table.to_string();
-    bot_say(slack_channel, &msg)
 }

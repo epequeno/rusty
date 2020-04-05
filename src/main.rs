@@ -72,15 +72,15 @@ impl Handler {
 
         let text: String = message_standard.text.clone().unwrap();
 
-        if channel == SlackChannel::Library.id() {
-            info!("recognized message from #library");
+        if channel == SlackChannel::Library.id() || channel == SlackChannel::BattleBots.id() {
+            info!("recognized message from {}", channel);
 
             if text.starts_with("!put ") {
                 info!("matched !put");
                 parse_put(message_standard)
             } else if text.starts_with("!last") {
                 info!("matched !last");
-                last_five(SlackChannel::Library)
+                last_five(message_standard)
             }
         }
 
