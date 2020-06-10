@@ -4,7 +4,6 @@ mod utils;
 
 #[macro_use]
 extern crate prettytable;
-use env_logger;
 use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
@@ -47,7 +46,8 @@ impl EventHandler for Handler {
     fn on_close(&mut self, client: &RtmClient) {}
 
     fn on_connect(&mut self, client: &RtmClient) {
-        std::thread::spawn(read_feeds);
+        let token = utils::get_slack_token_from_env_var();
+        std::thread::spawn(|| read_feeds(token));
     }
 }
 
