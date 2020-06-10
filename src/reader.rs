@@ -5,9 +5,7 @@ use atom_syndication::{Entry, Feed as AtomFeed};
 use failure::Error;
 use linked_hash_set::LinkedHashSet;
 use log::{debug, error, info};
-use reqwest;
 use rss::{Channel, Item};
-use slack_api;
 use std::thread;
 use std::time::Duration;
 
@@ -178,16 +176,16 @@ impl FeedUrl {
     }
 }
 
-pub fn read_feeds() {
+pub fn read_feeds(token: String) {
     let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
-    let token: String = std::env::vars()
-        .filter(|(k, _)| k == "SLACKBOT_TOKEN")
-        .map(|(_, v)| v)
-        .collect();
     let client = slack_api::requests::default_client().unwrap();
 
     let rss_feeds = vec![
+        // (
+        //     "https://lorem-rss.herokuapp.com/feed?unit=second&interval=30",
+        //     SlackChannel::BattleBots,
+        // ),
         ("https://blog.japaric.io/index.xml", SlackChannel::Rust),
         ("https://newrustacean.com/feed.xml", SlackChannel::Rust),
         ("https://nercury.github.io/feed.xml", SlackChannel::Rust),

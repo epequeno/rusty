@@ -24,6 +24,8 @@ pub fn get_slack_token_from_env_var() -> String {
         std::process::exit(1);
     }
 
+    // we need to set the token env var as a json object becasue of the way fargate consumes
+    // secrets. This process extracts the token we need from the json object.
     let slackbot_token_json: Value = serde_json::from_str(&api_key_json).unwrap();
     String::from(slackbot_token_json["SLACKBOT_TOKEN"].as_str().unwrap())
 }
