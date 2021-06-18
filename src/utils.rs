@@ -31,7 +31,7 @@ pub fn get_slack_token_from_env_var() -> String {
 }
 
 fn make_client() -> Client {
-    slack_api::requests::default_client().unwrap()
+    slack_api::sync::requests::default_client().unwrap()
 }
 
 pub fn bot_say(channel: SlackChannel, msg: &str) {
@@ -41,14 +41,16 @@ pub fn bot_say(channel: SlackChannel, msg: &str) {
     let chan_id = channel.id();
     let bot_msg = format!("```{}```", msg);
 
-    let mut msg = slack_api::chat::PostMessageRequest::default();
-    msg.channel = &chan_id;
-    msg.text = &bot_msg;
-    msg.as_user = Some(true);
+    let msg = slack_api::sync::chat::PostMessageRequest {
+        channel: &chan_id,
+        text: &bot_msg,
+        as_user: Some(true),
+        ..Default::default()
+    };
 
     info!(
         "{:?}",
-        slack_api::chat::post_message(&api_client, &token, &msg)
+        slack_api::sync::chat::post_message(&api_client, &token, &msg)
     );
 }
 
@@ -56,16 +58,15 @@ pub fn add_reaction(request: AddRequest) {
     info!("adding reaction");
     let api_client = make_client();
     let token = get_slack_token_from_env_var();
-    let res = slack_api::reactions::add(&api_client, &token, &request);
+    let res = slack_api::sync::reactions::add(&api_client, &token, &request);
     debug!("{:?}", res);
 }
 
 pub fn get_user_info(user_id: &str) -> Option<InfoResponse> {
     let api_client = make_client();
     let token = get_slack_token_from_env_var();
-    let mut info_request = InfoRequest::default();
-    info_request.user = user_id;
-    if let Ok(user_info) = slack_api::users::info(&api_client, &token, &info_request) {
+    let info_request = InfoRequest { user: user_id };
+    if let Ok(user_info) = slack_api::sync::users::info(&api_client, &token, &info_request) {
         Some(user_info)
     } else {
         None
