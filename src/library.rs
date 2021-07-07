@@ -7,8 +7,7 @@ use log::{debug, error, info};
 use prettytable::{format, Cell, Row, Table};
 use rusoto_core::Region;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, QueryInput};
-use slack_api::reactions::AddRequest;
-use slack_api::MessageStandard;
+use slack_api::{reactions::AddRequest, MessageStandard, Timestamp};
 use std::collections::HashMap;
 use url::Url;
 
@@ -44,33 +43,37 @@ fn put_url(
     let client = DynamoDbClient::new(Region::UsEast1);
 
     let mut item: HashMap<String, AttributeValue> = HashMap::new();
-    let mut url_value = AttributeValue::default();
-    url_value.s = Some(url.to_string());
+    let url_value = AttributeValue {
+        s: Some(url.to_string()),
+        ..Default::default()
+    };
 
-    let mut partition_key_value = AttributeValue::default();
-    partition_key_value.s = Some(String::from("records"));
+    let partition_key_value = AttributeValue {
+        s: Some(String::from("records")),
+        ..Default::default()
+    };
 
     let utc: DateTime<Utc> = Utc::now();
-    let mut timestamp_attr_value = AttributeValue::default();
     let timestamp = utc.timestamp().to_string();
-    timestamp_attr_value.s = Some(timestamp);
+    let timestamp_attr_value = AttributeValue {
+        s: Some(timestamp),
+        ..Default::default()
+    };
 
-    let mut user_val = AttributeValue::default();
-    user_val.s = Some(user.to_string());
+    let user_val = AttributeValue {
+        s: Some(user.to_string()),
+        ..Default::default()
+    };
 
-    let mut user_real_name_val = AttributeValue::default();
-    if let Some(name) = get_user_real_name(user) {
-        user_real_name_val.s = Some(name);
-    } else {
-        user_real_name_val.s = Some(String::new());
-    }
+    let user_real_name_val = AttributeValue {
+        s: Some(get_user_real_name(user).unwrap_or_default()),
+        ..Default::default()
+    };
 
-    let mut user_handle = AttributeValue::default();
-    if let Some(handle) = get_user_handle(user) {
-        user_handle.s = Some(handle);
-    } else {
-        user_handle.s = Some(String::new());
-    }
+    let user_handle = AttributeValue {
+        s: Some(get_user_handle(user).unwrap_or_default()),
+        ..Default::default()
+    };
 
     item.insert(String::from("partition_key"), partition_key_value);
     item.insert(String::from("url"), url_value);
@@ -79,9 +82,12 @@ fn put_url(
     item.insert(String::from("real_name"), user_real_name_val);
     item.insert(String::from("handle"), user_handle);
 
-    let mut put_item_input = PutItemInput::default();
-    put_item_input.table_name = String::from("library");
-    put_item_input.item = item;
+    let put_item_input = PutItemInput {
+        table_name: String::from("library"),
+        item,
+        ..Default::default()
+    };
+
     let res = client.put_item(put_item_input).sync();
     debug!("{:?}", res);
     res
@@ -90,7 +96,7 @@ fn put_url(
 // take the string we get from slack and parse it so we can do actual work with it
 pub fn parse_put(message: MessageStandard) {
     // expected input is like: !put <url>
-    let timestamp: String = message.ts.unwrap();
+    let timestamp: Timestamp = message.ts.unwrap();
     let text: String = message.text.unwrap();
     let user: String = message.user.unwrap();
     let channel: String = message.channel.unwrap();
@@ -108,20 +114,17 @@ pub fn parse_put(message: MessageStandard) {
 
     if let Ok(parsed_url) = Url::parse(&url_string) {
         info!("success! parsed {} as url: {}", url_string, parsed_url);
-        let mut add_request = AddRequest::default();
-        add_request.channel = Some(&channel);
-        add_request.timestamp = Some(&timestamp);
-
-        match put_url(&parsed_url.as_str(), &user) {
-            Ok(_) => {
-                add_request.name = "heavy_check_mark";
-                add_reaction(add_request)
-            }
-            Err(_) => {
-                add_request.name = "x";
-                add_reaction(add_request)
-            }
-        }
+        let add_request = AddRequest {
+            channel: Some(&channel),
+            timestamp: Some(timestamp),
+            name: if put_url(&parsed_url.as_str(), &user).is_ok() {
+                "heavy_check_mark"
+            } else {
+                "x"
+            },
+            ..Default::default()
+        };
+        add_reaction(add_request)
     } else {
         let msg = format!("unable to parse as url: {}", input_string);
         error!("{}", msg);
@@ -134,35 +137,39 @@ pub fn parse_put(message: MessageStandard) {
 pub fn last_five(message: MessageStandard) {
     let client = DynamoDbClient::new(Region::UsEast1);
 
-    // define the query
-    let mut query_input = QueryInput::default();
-    query_input.table_name = String::from("library");
-    query_input.select = Some(String::from("ALL_ATTRIBUTES"));
-    query_input.index_name = Some(String::from("partition_key-timestamp-index"));
-    query_input.limit = Some(5);
-    // sort in reverse order, where newest are listed first
-    query_input.scan_index_forward = Some(false);
-    query_input.key_condition_expression = Some(String::from(
-        "partition_key = :partition AND #timestamp >= :t1",
-    ));
-
     let mut attr_values: HashMap<String, AttributeValue> = HashMap::new();
-
     let mut attr_names: HashMap<String, String> = HashMap::new();
     attr_names.insert(String::from("#timestamp"), String::from("timestamp"));
 
-    let mut attr_value = AttributeValue::default();
-    attr_value.s = Some(String::from("records"));
+    let attr_value = AttributeValue {
+        s: Some(String::from("records")),
+        ..Default::default()
+    };
     attr_values.insert(String::from(":partition"), attr_value);
 
     // TODO: change to a dynamic time range, so maybe only look at records in the last 6mo? Really
     // depends on the frequency of use which is currently unknown.
-    let mut attr_value = AttributeValue::default();
-    attr_value.s = Some(String::from("1577836800"));
+    let attr_value = AttributeValue {
+        s: Some(String::from("1577836800")),
+        ..Default::default()
+    };
     attr_values.insert(String::from(":t1"), attr_value);
 
-    query_input.expression_attribute_names = Some(attr_names);
-    query_input.expression_attribute_values = Some(attr_values);
+    // define the query
+    let query_input = QueryInput {
+        table_name: String::from("library"),
+        select: Some(String::from("ALL_ATTRIBUTES")),
+        index_name: Some(String::from("partition_key-timestamp-index")),
+        limit: Some(5),
+        // sort in reverse order, where newest are listed first
+        scan_index_forward: Some(false),
+        key_condition_expression: Some(String::from(
+            "partition_key = :partition AND #timestamp >= :t1",
+        )),
+        expression_attribute_names: Some(attr_names),
+        expression_attribute_values: Some(attr_values),
+        ..Default::default()
+    };
 
     let query_output = client.query(query_input).sync().unwrap();
     debug!("{:?}", query_output);
@@ -170,7 +177,7 @@ pub fn last_five(message: MessageStandard) {
 
     let channel: String = message.channel.unwrap();
 
-    for chan in &[SlackChannel::BattleBots, SlackChannel::Library] {
+    for chan in &[SlackChannel::BotSpam, SlackChannel::Library] {
         if channel == chan.id() {
             if items.is_empty() {
                 let msg = String::from("no records found!");

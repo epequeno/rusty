@@ -6,17 +6,18 @@ use failure::Error;
 use linked_hash_set::LinkedHashSet;
 use log::{debug, error, info};
 use rss::{Channel, Item};
-use std::thread;
-use std::time::Duration;
+use std::{thread, time::Duration};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Title(String);
 
+#[derive(Debug)]
 struct ArticleUrl(String);
 
 #[derive(Debug, Clone)]
 pub struct FeedUrl(String);
 
+#[derive(Debug)]
 pub struct Article {
     title: Title,
     url: ArticleUrl,
@@ -90,7 +91,8 @@ fn get_atom_feed(url: &str) -> Result<String, reqwest::Error> {
         .timeout(timeout)
         .build()?;
     let res = client.get(url).send()?;
-    Ok(res.text()?)
+    let text = res.text()?;
+    Ok(text)
 }
 
 fn read_atom(feed: &Feed) -> Result<Vec<Entry>, Error> {
@@ -179,7 +181,7 @@ impl FeedUrl {
 pub fn read_feeds(token: String) {
     let sleep_duration = Duration::from_secs(300);
     let titles_to_retain = 200;
-    let client = slack_api::requests::default_client().unwrap();
+    let client = slack_api::sync::requests::default_client().unwrap();
 
     let rss_feeds = vec![
         // (
@@ -191,14 +193,7 @@ pub fn read_feeds(token: String) {
         ("https://nercury.github.io/feed.xml", SlackChannel::Rust),
         ("https://os.phil-opp.com/rss.xml", SlackChannel::Rust),
         ("https://this-week-in-rust.org/rss.xml", SlackChannel::Rust),
-        (
-            "https://rusty-spike.blubrry.net/feed/podcast/",
-            SlackChannel::Rust,
-        ),
-        (
-            "http://feeds.feedburner.com/AmazonWebServicesBlog",
-            SlackChannel::Aws,
-        ),
+        ("https://aws.amazon.com/blogs/aws/feed/", SlackChannel::Aws),
         ("https://kubernetes.io/feed.xml", SlackChannel::Kubernetes),
     ];
 
@@ -271,11 +266,17 @@ pub fn read_feeds(token: String) {
 
                             let text = format!("<{}|{}>", article.url, article.title);
                             info!("sending channel {}: {}", &chan_id, &text);
-                            let mut msg = slack_api::chat::PostMessageRequest::default();
-                            msg.channel = &chan_id;
-                            msg.text = &text;
-                            msg.as_user = Some(true);
-                            debug!("{:?}", slack_api::chat::post_message(&client, &token, &msg));
+                            let msg = slack_api::sync::chat::PostMessageRequest {
+                                channel: &chan_id,
+                                text: &text,
+                                as_user: Some(true),
+                                ..Default::default()
+                            };
+
+                            debug!(
+                                "{:?}",
+                                slack_api::sync::chat::post_message(&client, &token, &msg)
+                            );
                         }
                     }
                 }

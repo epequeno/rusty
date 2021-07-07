@@ -8,6 +8,7 @@ use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
 use slack::{Event, EventHandler, Message, RtmClient};
+
 struct Handler;
 
 #[derive(Clone, Debug)]
@@ -16,7 +17,7 @@ pub enum SlackChannel {
     Rust,
     Kubernetes,
     Python,
-    BattleBots,
+    BotSpam,
     Library,
 }
 
@@ -27,7 +28,7 @@ impl SlackChannel {
             SlackChannel::Rust => "C8EHWNKHV",
             SlackChannel::Kubernetes => "C91DM9Y6S",
             SlackChannel::Python => "C6DTBQK4P",
-            SlackChannel::BattleBots => "CD31RPEFR",
+            SlackChannel::BotSpam => "CNF841CN7",
             SlackChannel::Library => "CE2L5QUGP",
         }
     }
@@ -72,7 +73,7 @@ impl Handler {
 
         let text: String = message_standard.text.clone().unwrap();
 
-        if channel == SlackChannel::Library.id() || channel == SlackChannel::BattleBots.id() {
+        if channel == SlackChannel::Library.id() || channel == SlackChannel::BotSpam.id() {
             info!("recognized message from {}", channel);
 
             if text.starts_with("!put ") {
