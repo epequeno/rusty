@@ -38,7 +38,7 @@ pub fn bot_say(channel: SlackChannel, msg: &str) {
     let api_client = make_client();
     let token = get_slack_token_from_env_var();
 
-    let chan_id = channel.id();
+    let chan_id = channel.to_string();
     let bot_msg = format!("```{}```", msg);
 
     let msg = slack_api::sync::chat::PostMessageRequest {

@@ -178,7 +178,7 @@ pub fn last_five(message: MessageStandard) {
     let channel: String = message.channel.unwrap();
 
     for chan in &[SlackChannel::BotSpam, SlackChannel::Library] {
-        if channel == chan.id() {
+        if channel == chan.to_string() {
             if items.is_empty() {
                 let msg = String::from("no records found!");
                 bot_say(chan.clone(), &msg);
