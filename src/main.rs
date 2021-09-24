@@ -8,6 +8,7 @@ use library::{last_five, parse_put};
 use log::info;
 use reader::read_feeds;
 use slack::{Event, EventHandler, Message, RtmClient};
+use std::fmt;
 
 struct Handler;
 
@@ -21,16 +22,17 @@ pub enum SlackChannel {
     Library,
 }
 
-impl SlackChannel {
-    pub fn id(&self) -> &'static str {
-        match self {
+impl fmt::Display for SlackChannel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
             SlackChannel::Aws => "CA6MUA4LU",
             SlackChannel::Rust => "C8EHWNKHV",
             SlackChannel::Kubernetes => "C91DM9Y6S",
             SlackChannel::Python => "C6DTBQK4P",
             SlackChannel::BotSpam => "CNF841CN7",
             SlackChannel::Library => "CE2L5QUGP",
-        }
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -73,7 +75,9 @@ impl Handler {
 
         let text: String = message_standard.text.clone().unwrap();
 
-        if channel == SlackChannel::Library.id() || channel == SlackChannel::BotSpam.id() {
+        if channel == SlackChannel::Library.to_string()
+            || channel == SlackChannel::BotSpam.to_string()
+        {
             info!("recognized message from {}", channel);
 
             if text.starts_with("!put ") {

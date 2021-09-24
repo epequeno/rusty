@@ -248,7 +248,7 @@ pub fn read_feeds(token: String) {
                 info!("popping: {:?}", feed.previous_titles.pop_front());
             }
 
-            let chan_id = feed.channel.id();
+            let chan_id = feed.channel.to_string();
             match feed.read() {
                 Ok(articles) => {
                     info!(
